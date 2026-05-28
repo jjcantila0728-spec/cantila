@@ -1,12 +1,13 @@
 /* ============================================================
    /pricing — full breakdown.
 
-   Plan tiers from src/data/plan-tiers.ts (mirrors plan §8.2),
-   TLD price table from src/data/tld-prices.ts (mirrors §4.7),
-   metered overages, FAQ. The Console's own /billing page reads
-   its catalog from the control plane via /v1/billing/info — this
-   page is the public mirror so a visitor doesn't need an account
-   to see what they'd pay.
+   Plan tiers and TLD pricebook are loaded server-side from the
+   control plane at /v1/billing/info (single source of truth —
+   same shape the Console's /billing page reads). When the API
+   is unreachable we fall back to the vendored copies under
+   src/data/, so a standalone clone still renders /pricing.
+   Revalidated every 5 minutes; price edits propagate without
+   a redeploy.
    ============================================================ */
 
 import HeroDarkBand from "@/components/marketing/HeroDarkBand";
@@ -20,6 +21,7 @@ import {
 } from "@/components/marketing/ui";
 import JsonLd from "@/components/JsonLd";
 import { buildPageMetadata, faqJsonLd } from "@/lib/seo";
+import { loadPublicBillingCatalog } from "@/lib/billing-catalog-server";
 
 export const metadata = buildPageMetadata({
   title: "Pricing",
@@ -27,6 +29,8 @@ export const metadata = buildPageMetadata({
     "Start free. Pay for what you ship. Plan tiers, metered overages, and the cheapest-in-market domain catalog.",
   path: "/pricing",
 });
+
+export const revalidate = 300;
 
 const OVERAGES = [
   { meter: "CPU-vCore-hour", price: "$0.012", note: "Above plan allowance" },
@@ -65,7 +69,8 @@ const FAQ = [
   },
 ];
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  const catalog = await loadPublicBillingCatalog();
   return (
     <>
       <JsonLd payload={faqJsonLd(FAQ.map(({ q, a }) => ({ q, a })))} />
@@ -90,7 +95,7 @@ export default function PricingPage() {
       />
 
       <Section id="tiers" eyebrow="Plan tiers" title="Pick the shape that matches what you're shipping.">
-        <PricingTable />
+        <PricingTable tiers={catalog.planTiers} />
         <p className="mt-5 text-sm text-light-ink-faint">
           Prices in USD. Tier numbers are illustrative against measured infra
           cost (plan §8.2); the exact figure on your invoice is whatever
@@ -104,7 +109,7 @@ export default function PricingPage() {
         description="The Cantila Domains catalog is priced near wholesale because the domain is the hook for the bundled services. WHOIS privacy and auto-renew are included free."
         bg="paper"
       >
-        <DomainPriceTable />
+        <DomainPriceTable prices={catalog.tldPrices} />
       </Section>
 
       <Section

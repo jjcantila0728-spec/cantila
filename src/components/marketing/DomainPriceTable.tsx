@@ -1,6 +1,11 @@
 import { TLD_PRICES } from "@/data/tld-prices";
+import type { ApiPublicTldPrice } from "@/lib/api";
 
-export default function DomainPriceTable() {
+export default function DomainPriceTable({
+  prices = TLD_PRICES,
+}: {
+  prices?: ApiPublicTldPrice[];
+}) {
   return (
     <div className="overflow-hidden rounded-2xl border border-light-border">
       <table className="w-full text-sm">
@@ -13,7 +18,7 @@ export default function DomainPriceTable() {
           </tr>
         </thead>
         <tbody>
-          {TLD_PRICES.map((row, i) => (
+          {prices.map((row, i) => (
             <tr
               key={row.tld}
               className={i % 2 === 0 ? "bg-light-bg" : "bg-light-surface/40"}

@@ -754,9 +754,7 @@ export const api = {
   getAiInfo: () => request<{ label: string; live: boolean }>(`/ai/info`),
   getMailInfo: () => request<{ label: string; live: boolean }>(`/mail/info`),
   getBillingInfo: () =>
-    request<{ label: string; live: boolean; publishableKey?: string }>(
-      `/billing/info`,
-    ),
+    request<ApiBillingInfo>(`/billing/info`),
 
   setAnthropicKey: (apiKey: string) =>
     request<ApiAccount>(`/accounts/me/anthropic-key`, {
@@ -1821,6 +1819,36 @@ export interface ApiPlanChangeResult {
   invoicedNow: boolean;
   prorationBehavior: string;
   preview: ApiProrationPreview;
+}
+
+/** One row of the public TLD pricebook (plan §4.7). */
+export interface ApiPublicTldPrice {
+  tld: string; //  e.g. ".com"
+  perYear: string; //  e.g. "$8.99"
+  retail?: string; //  e.g. "$12–20"
+  note?: string;
+}
+
+/** One marketing plan tier (plan §8.2). */
+export interface ApiPublicPlanTier {
+  slug: "hobby" | "starter" | "pro" | "agency" | "dedicated";
+  name: string;
+  price: string;
+  priceCadence?: string;
+  best: string;
+  bullets: string[];
+  cta: { label: string; href: string };
+  featured?: boolean;
+}
+
+/** Shape of `GET /v1/billing/info` — Stripe adapter status + the
+ *  marketing pricebook the apex /pricing page renders. */
+export interface ApiBillingInfo {
+  label: string;
+  live: boolean;
+  publishableKey?: string;
+  tldPrices?: ApiPublicTldPrice[];
+  planTiers?: ApiPublicPlanTier[];
 }
 
 /** One SMS OTP challenge — safe view, no code (plan §4.5 / §15.2). */

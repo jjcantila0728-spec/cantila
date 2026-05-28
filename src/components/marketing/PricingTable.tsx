@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { PLAN_TIERS } from "@/data/plan-tiers";
+import type { ApiPublicPlanTier } from "@/lib/api";
 
-export default function PricingTable() {
+export default function PricingTable({
+  tiers = PLAN_TIERS,
+}: {
+  tiers?: ApiPublicPlanTier[];
+}) {
   return (
     <div className="grid gap-4 lg:grid-cols-3 xl:grid-cols-5">
-      {PLAN_TIERS.map((tier) => {
+      {tiers.map((tier) => {
         const featured = tier.featured === true;
         return (
           <div
