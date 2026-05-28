@@ -13,6 +13,7 @@
 
 import Link from "next/link";
 import { headers } from "next/headers";
+import { notFound } from "next/navigation";
 import { ChevronRight, Home } from "lucide-react";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
@@ -30,6 +31,14 @@ export default function DocsLayout({
 }) {
   const pathname = headers().get("x-pathname") ?? "/docs";
   const doc = FLAT_DOCS.find((p) => p.slug === pathname);
+
+  // If this is a /docs/* path but we don't have a matching MDX file or
+  // a known doc entry, throw a proper 404. Without this Next would
+  // render the global not-found.tsx with HTTP 200 (the global 404 uses
+  // headers() which forces dynamic rendering and drops the 404 status).
+  if (pathname.startsWith("/docs/") && !doc) {
+    notFound();
+  }
 
   // Only inject Article schema on a known doc page. For /docs/* paths we
   // don't recognise (e.g. the docs landing has its own page.tsx and
