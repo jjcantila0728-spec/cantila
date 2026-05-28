@@ -33,6 +33,7 @@ const STATUS: Record<string, StatusTone> = {
   superseded: { label: "Superseded", dot: "bg-ink-faint", text: "text-ink-faint", bg: "bg-surface-3", ring: "ring-border" },
   healthy: { label: "Healthy", dot: "bg-live", text: "text-live", bg: "bg-live/10", ring: "ring-live/20", live: true },
   provisioning: { label: "Provisioning", dot: "bg-ember", text: "text-ember", bg: "bg-ember/10", ring: "ring-ember/20" },
+  active: { label: "Active", dot: "bg-live", text: "text-live", bg: "bg-live/10", ring: "ring-live/20", live: true },
 };
 
 export function statusTone(status: string): StatusTone {
@@ -77,7 +78,7 @@ export function Pill({
   tone = "neutral",
 }: {
   children: ReactNode;
-  tone?: "neutral" | "ember" | "live" | "info" | "violet" | "warn";
+  tone?: "neutral" | "ember" | "live" | "info" | "violet" | "warn" | "down";
 }) {
   const tones: Record<string, string> = {
     neutral: "bg-surface-3 text-ink-dim ring-border",
@@ -86,6 +87,7 @@ export function Pill({
     info: "bg-info/10 text-info ring-info/20",
     violet: "bg-violet/10 text-violet ring-violet/20",
     warn: "bg-warn/10 text-warn ring-warn/20",
+    down: "bg-down/10 text-down ring-down/20",
   };
   return (
     <span
@@ -227,7 +229,7 @@ export function Meter({
   tone = "ember",
 }: {
   value: number; // 0..100
-  tone?: "ember" | "live" | "warn" | "down" | "info";
+  tone?: "ember" | "live" | "warn" | "down" | "info" | "violet";
 }) {
   const tones: Record<string, string> = {
     ember: "bg-ember",
@@ -235,6 +237,7 @@ export function Meter({
     warn: "bg-warn",
     down: "bg-down",
     info: "bg-info",
+    violet: "bg-violet",
   };
   return (
     <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-3">

@@ -9,10 +9,13 @@ import {
   TriangleAlert,
   UserPlus,
   Server,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
-import { PageHeader, Panel, cx } from "@/components/ui";
+import { Panel, cx } from "@/components/ui";
 import { AreaChart, Sparkline, BarGauge } from "@/components/AreaChart";
-import DeployList from "@/components/DeployList";
+import LiveDashboardTiles from "@/components/LiveDashboardTiles";
+import WelcomeHeader from "@/components/WelcomeHeader";
 import {
   projects,
   deployments,
@@ -41,6 +44,8 @@ const ACTIVITY_ICON = {
   billing: CreditCard,
   alert: TriangleAlert,
   member: UserPlus,
+  mail: Mail,
+  sms: MessageSquare,
 } as const;
 
 const ACTIVITY_TONE = {
@@ -50,6 +55,8 @@ const ACTIVITY_TONE = {
   billing: "text-ink-dim",
   alert: "text-down",
   member: "text-live",
+  mail: "text-info",
+  sms: "text-violet",
 } as const;
 
 function Tile({
@@ -92,15 +99,50 @@ function Tile({
   );
 }
 
+function MockTiles() {
+  return (
+    <div className="grid grid-cols-2 gap-4 stagger lg:grid-cols-4">
+      <Tile
+        label="Live projects"
+        value={`${dashboardStats.liveProjects} / ${dashboardStats.totalProjects}`}
+        sub="+1 shipped this week"
+        data={[3, 3, 4, 4, 4, 5, 5, 6]}
+        tone="live"
+      />
+      <Tile
+        label="Deploys · 7d"
+        value={String(dashboardStats.deploysThisWeek)}
+        sub="8 from Chat Deploy & MCP"
+        subTone="ember"
+        data={[2, 4, 3, 6, 5, 7, 4, 8]}
+        tone="ember"
+      />
+      <Tile
+        label="Requests today"
+        value={dashboardStats.reqToday}
+        sub="▲ 12% vs. yesterday"
+        data={projects[3].metrics.requests.slice(8)}
+        tone="info"
+      />
+      <Tile
+        label="Avg uptime · 30d"
+        value={`${dashboardStats.avgUptime}%`}
+        sub="No incidents in 30 days"
+        data={[99.9, 99.94, 99.97, 99.92, 99.99, 99.96, 99.98, 99.96]}
+        tone="violet"
+      />
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const traffic = aggregateTraffic();
-  const recent = deployments.slice(0, 6);
 
   return (
     <div className="space-y-8">
-      <PageHeader
+      <WelcomeHeader
         eyebrow="Overview"
-        title={`Welcome back, ${ACCOUNT.org.split(" ")[0]}`}
+        fallbackName={ACCOUNT.org.split(" ")[0]}
         lead="Everything you've shipped, in one control surface — projects, deploys, traffic and the fleet beneath them."
         actions={
           <Link
@@ -113,38 +155,9 @@ export default function DashboardPage() {
         }
       />
 
-      {/* stat tiles */}
-      <div className="grid grid-cols-2 gap-4 stagger lg:grid-cols-4">
-        <Tile
-          label="Live projects"
-          value={`${dashboardStats.liveProjects} / ${dashboardStats.totalProjects}`}
-          sub="+1 shipped this week"
-          data={[3, 3, 4, 4, 4, 5, 5, 6]}
-          tone="live"
-        />
-        <Tile
-          label="Deploys · 7d"
-          value={String(dashboardStats.deploysThisWeek)}
-          sub="8 from Chat Deploy & MCP"
-          subTone="ember"
-          data={[2, 4, 3, 6, 5, 7, 4, 8]}
-          tone="ember"
-        />
-        <Tile
-          label="Requests today"
-          value={dashboardStats.reqToday}
-          sub="▲ 12% vs. yesterday"
-          data={projects[3].metrics.requests.slice(8)}
-          tone="info"
-        />
-        <Tile
-          label="Avg uptime · 30d"
-          value={`${dashboardStats.avgUptime}%`}
-          sub="No incidents in 30 days"
-          data={[99.9, 99.94, 99.97, 99.92, 99.99, 99.96, 99.98, 99.96]}
-          tone="violet"
-        />
-      </div>
+      {/* stat tiles + recent deployments — live from the control plane,
+          mock fallback when offline. */}
+      <LiveDashboardTiles fallback={<MockTiles />} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* left column */}
@@ -184,32 +197,25 @@ export default function DashboardPage() {
             </div>
           </Panel>
 
-          {/* recent deployments */}
-          <Panel pad={false}>
-            <div className="flex items-center justify-between border-b border-border-soft px-5 py-4">
-              <h2 className="font-display text-base font-semibold text-ink">
-                Recent deployments
-              </h2>
-              <Link
-                href="/projects"
-                className="inline-flex items-center gap-1 text-2xs font-medium text-ink-dim hover:text-ember"
-              >
-                All projects
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-            <DeployList deployments={recent} showProject />
-          </Panel>
+          {/* Recent deployments panel is rendered live by LiveDashboardTiles
+              above; no second mock copy needed here. */}
         </div>
 
         {/* right column */}
         <div className="space-y-6">
           {/* activity */}
           <Panel pad={false}>
-            <div className="border-b border-border-soft px-5 py-4">
+            <div className="flex items-center justify-between border-b border-border-soft px-5 py-4">
               <h2 className="font-display text-base font-semibold text-ink">
                 Activity
               </h2>
+              <Link
+                href="/activity"
+                className="inline-flex items-center gap-1 text-2xs font-medium text-ink-dim hover:text-ember"
+              >
+                All activity
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
             <ul className="divide-y divide-border-soft">
               {activity.slice(0, 7).map((a) => {

@@ -65,8 +65,11 @@ src/
       dashboard/            Workspace overview
       projects/             Project list + detail ([id], 7 tabs)
       deploy/               Chat Deploy — the signature feature
-      databases/            Cantila Data
+      monitoring/           Observability — uptime, alerts, incidents
+      databases/            Cantila Data — databases + object storage
       domains/              Cantila Domains
+      mail/                 Cantila Mail · [box] webmail client
+      sms/                  Cantila SMS · [number] conversation threads
       templates/            Template marketplace
       billing/              Plans, metered usage, invoices
       team/                 Members & roles
@@ -74,11 +77,17 @@ src/
   components/
     Sidebar.tsx  Topbar.tsx        App shell (client)
     ui.tsx                         Shared primitives (server-safe)
+    Modal.tsx                      Dialog + form-field chrome (client)
     AreaChart.tsx                  SVG charts, sparklines, gauges
     DeployList.tsx                 Deployment rows
     ProjectView.tsx                Project detail w/ tabbed UI (client)
     LogStream.tsx                  Simulated live log streaming (client)
     ChatDeploy.tsx                 The Chat Deploy agent simulation (client)
+    MonitoringView.tsx             Observability — uptime, alerts, status (client)
+    MailView.tsx                   Cantila Mail section (client)
+    MailboxView.tsx                Webmail client — folders, reading pane (client)
+    SmsView.tsx                    Cantila SMS section (client)
+    ConversationsView.tsx          SMS conversation threads (client)
     CopyButton.tsx                 Copy-to-clipboard helper (client)
   lib/
     types.ts                       Domain types
@@ -98,29 +107,70 @@ src/
   a database, build, schedule, route, issue SSL, and return a live URL — each
   step shown as a concrete, reversible operation.
 - **Logs** — a simulated live-streaming log viewer with pause / clear.
-- **Cantila Data / Domains / Templates** — the bundled services.
+- **Monitoring** — cross-project observability: a public status page, uptime
+  monitors with check-history bars, an active-alerts feed with acknowledge,
+  and incident timelines.
+- **Cantila Data** — managed databases (PostgreSQL, MySQL, MongoDB, Redis)
+  and S3-compatible object-storage buckets with CDN — each with a create flow.
+- **Cantila Domains / Templates** — registrar + DNS, and the one-click
+  template marketplace.
+- **Cantila Mail** — a full send-and-receive email provider, presented as
+  first-party infrastructure (no third-party relay): sending domains with
+  SPF/DKIM/DMARC/MX status, hosted mailboxes with storage quotas, aliases and
+  email-to-app routing, an outbound-volume chart, and a live delivery feed.
+  Open any mailbox for a working **webmail client** — folder rail, message
+  list, reading pane, star/read state and a compose dialog.
+- **Cantila SMS** — first-party messaging infrastructure: provisioned phone
+  numbers with capabilities, the OTP/2FA verification API, an outbound-volume
+  chart, and a recent-message log. Open any number for **conversation
+  threads** — a two-pane messaging UI with chat bubbles and a live composer.
 - **Billing** — plan tiers, metered-usage meters, invoices.
 - **Settings** — the **Cantila + Claude bridge**: the MCP server endpoint
   with its exposed tools, and the connected claude.ai account.
 
 ## What is mocked
 
-Everything stateful. All data lives in `src/lib/mock-data.ts` (deployments,
-metrics, logs, databases, etc.). Metrics use a seeded RNG so the server and
-client always render identically. Buttons that would mutate real
-infrastructure (Redeploy, Add domain, Invite member…) are present but inert.
+Most stateful sections still render from `src/lib/mock-data.ts` (metrics,
+mail, sms, monitoring, billing). Metrics use a seeded RNG so the server and
+client always render identically.
+
+**Chat Deploy is wired to the live control plane** when the control plane
+is reachable (see below) — the empty state shows a "Live mode" badge and
+the deploy actually calls the Fastify API behind the Console proxy. When
+the control plane is offline the existing scripted simulation is used.
+
+## Connecting to the control plane
+
+The Console proxies `/api/cantila/*` to the Cantila control plane through
+`src/app/api/cantila/[...path]/route.ts`. The typed client lives in
+`src/lib/api.ts`. To run both sides locally:
+
+```bash
+# terminal 1 — control plane
+cd ../cantila-control-plane
+npm install
+cp .env.example .env
+npm run dev                # listens on :8080
+
+# terminal 2 — Console
+cd ../cantila-console
+cp .env.local.example .env.local   # CANTILA_CONTROL_PLANE_URL=http://localhost:8080
+npm run dev                # listens on :3000
+```
+
+Open <http://localhost:3000/deploy> and the Chat Deploy badge will read
+**Live mode — connected to the Cantila control plane**.
 
 ## Turning this into the real Console
 
 The intended next steps, in plan order:
 
-1. Replace `src/lib/mock-data.ts` with a typed client for the Cantila API
-   server (§7.1). `src/lib/types.ts` is the contract to build against.
+1. Migrate the remaining mock-backed views (Projects, Domains, Databases,
+   Mail, SMS, Monitoring) onto `src/lib/api.ts`.
 2. Add authentication and gate `/` behind a real session check.
-3. Wire the Chat Deploy UI to the Chat Deploy service; stream real build
-   logs over SSE/WebSocket into `LogStream`.
+3. Stream real build logs over SSE/WebSocket into `LogStream`.
 4. Back the MCP panel in Settings with the live OAuth connection state.
 
 ---
 
-*Cantila Console · MVP prototype · v0.1 · May 2026*
+*Cantila Console · MVP prototype · v0.2 · May 2026*

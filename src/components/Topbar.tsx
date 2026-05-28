@@ -1,15 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, Search, Bell, Plug, BookOpen } from "lucide-react";
+import { Menu, X, Search, Plug, BookOpen } from "lucide-react";
 import { cx } from "./ui";
 import { NAV, BrandMark } from "./Sidebar";
+import CommandPalette from "./CommandPalette";
+import NotificationsMenu from "./NotificationsMenu";
 
 export default function Topbar() {
   const [open, setOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const pathname = usePathname();
+
+  /* global ⌘K / Ctrl+K toggles the command palette */
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((p) => !p);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur-md sm:px-6">
@@ -23,7 +38,11 @@ export default function Topbar() {
       </button>
 
       {/* command search */}
-      <button className="group flex h-9 flex-1 items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-left text-sm text-ink-faint transition-colors hover:border-ink-faint sm:max-w-sm">
+      <button
+        type="button"
+        onClick={() => setPaletteOpen(true)}
+        className="group flex h-9 flex-1 items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-left text-sm text-ink-faint transition-colors hover:border-ink-faint sm:max-w-sm"
+      >
         <Search className="h-4 w-4" />
         <span className="flex-1 truncate">Search projects, deploys, logs…</span>
         <kbd className="hidden rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[0.6rem] text-ink-faint sm:block">
@@ -46,13 +65,7 @@ export default function Topbar() {
           Docs
         </a>
 
-        <button
-          className="relative flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-dim hover:text-ink"
-          aria-label="Notifications"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-ember ring-2 ring-bg" />
-        </button>
+        <NotificationsMenu />
       </div>
 
       {/* mobile drawer */}
@@ -113,6 +126,11 @@ export default function Topbar() {
           </div>
         </div>
       )}
+
+      <CommandPalette
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+      />
     </header>
   );
 }

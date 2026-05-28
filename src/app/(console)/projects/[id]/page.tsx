@@ -1,49 +1,24 @@
-import { notFound } from "next/navigation";
-import type { Metadata } from "next";
-import ProjectView from "@/components/ProjectView";
-import {
-  projects,
-  getProject,
-  getDeployments,
-  getEnvVars,
-  getLogs,
-  getDomains,
-  getDatabase,
-} from "@/lib/mock-data";
+"use client";
 
-export function generateStaticParams() {
-  return projects.map((p) => ({ id: p.id }));
-}
+/* Legacy /projects/[id] → /@handle/<name>. */
 
-export function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}): Metadata {
-  const project = getProject(params.id);
-  return {
-    title: project
-      ? `${project.name} · Cantila Console`
-      : "Project · Cantila Console",
-  };
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { resolveLegacyProjectUrl } from "@/lib/legacy-redirect";
 
-export default function ProjectDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const project = getProject(params.id);
-  if (!project) notFound();
-
+export default function LegacyProjectPage({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  useEffect(() => {
+    void (async () => {
+      const target = await resolveLegacyProjectUrl(params.id);
+      router.replace(target);
+    })();
+  }, [params.id, router]);
   return (
-    <ProjectView
-      project={project}
-      deployments={getDeployments(project.id)}
-      envVars={getEnvVars(project.id)}
-      logs={getLogs(project.id)}
-      domains={getDomains(project.id)}
-      database={getDatabase(project.databaseId)}
-    />
+    <div className="flex h-[calc(100vh-12rem)] items-center justify-center gap-2 text-ink-faint">
+      <Loader2 className="h-4 w-4 animate-spin" />
+      Redirecting…
+    </div>
   );
 }

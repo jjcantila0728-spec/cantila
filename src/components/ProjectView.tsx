@@ -31,10 +31,11 @@ import type {
   Domain,
   Database,
 } from "@/lib/types";
-import { StatusBadge, RuntimeMark, Pill, cx, Meter } from "./ui";
+import { StatusBadge, RuntimeMark, Pill, cx, Meter, Button } from "./ui";
 import { AreaChart } from "./AreaChart";
 import DeployList, { TRIGGER } from "./DeployList";
 import LogStream from "./LogStream";
+import Modal, { Field, inputClass } from "./Modal";
 import { REGIONS } from "@/lib/mock-data";
 
 const TABS = [
@@ -94,6 +95,13 @@ export default function ProjectView({
   const [tab, setTab] = useState<Tab>("Overview");
   const [autoSleep, setAutoSleep] = useState(project.autoSleep);
   const [alwaysOn, setAlwaysOn] = useState(project.alwaysOn);
+  const [redeploying, setRedeploying] = useState(false);
+
+  function redeploy() {
+    if (redeploying) return;
+    setRedeploying(true);
+    setTimeout(() => setRedeploying(false), 2600);
+  }
 
   const m = project.metrics;
   const live = deployments.find((d) => d.status === "live") ?? deployments[0];
@@ -143,9 +151,16 @@ export default function ProjectView({
               <ExternalLink className="h-4 w-4" />
               Visit
             </a>
-            <button className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-semibold text-[#1a0e08] transition-colors hover:bg-ember-bright">
-              <RotateCw className="h-4 w-4" strokeWidth={2.4} />
-              Redeploy
+            <button
+              onClick={redeploy}
+              disabled={redeploying}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-semibold text-[#1a0e08] transition-colors hover:bg-ember-bright disabled:cursor-default disabled:opacity-70"
+            >
+              <RotateCw
+                className={cx("h-4 w-4", redeploying && "animate-spin")}
+                strokeWidth={2.4}
+              />
+              {redeploying ? "Deploying…" : "Redeploy"}
             </button>
             <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-dim hover:text-ink">
               <MoreHorizontal className="h-4 w-4" />
@@ -245,9 +260,11 @@ export default function ProjectView({
 
         {tab === "Metrics" && <MetricsTab project={project} />}
 
-        {tab === "Environment" && <EnvTab envVars={envVars} />}
+        {tab === "Environment" && <EnvTab initial={envVars} />}
 
-        {tab === "Domains" && <DomainsTab domains={domains} />}
+        {tab === "Domains" && (
+          <DomainsTab initial={domains} projectId={project.id} />
+        )}
 
         {tab === "Settings" && (
           <SettingsTab
@@ -483,7 +500,33 @@ function MetricsTab({ project }: { project: Project }) {
   );
 }
 
-function EnvTab({ envVars }: { envVars: EnvVar[] }) {
+function EnvTab({ initial }: { initial: EnvVar[] }) {
+  const [vars, setVars] = useState<EnvVar[]>(() => [...initial]);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState<{
+    key: string;
+    value: string;
+    scope: EnvVar["scope"];
+    secret: boolean;
+  }>({ key: "", value: "", scope: "all", secret: true });
+
+  function addVar() {
+    const key = form.key.trim();
+    if (!key) return;
+    const variable: EnvVar = {
+      key,
+      preview: form.secret
+        ? "••••••••••••"
+        : form.value.trim() || "(empty)",
+      scope: form.scope,
+      updatedAt: "just now",
+      secret: form.secret,
+    };
+    setVars((prev) => [variable, ...prev]);
+    setForm({ key: "", value: "", scope: "all", secret: true });
+    setOpen(false);
+  }
+
   return (
     <div className="panel overflow-hidden p-0">
       <div className="flex items-center justify-between border-b border-border-soft px-5 py-3.5">
@@ -495,7 +538,10 @@ function EnvTab({ envVars }: { envVars: EnvVar[] }) {
             Encrypted at rest · never printed to logs · scoped per environment
           </p>
         </div>
-        <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 text-2xs font-medium text-ink hover:border-ink-faint">
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 text-2xs font-medium text-ink hover:border-ink-faint"
+        >
           <Plus className="h-3.5 w-3.5" />
           Add variable
         </button>
@@ -507,7 +553,7 @@ function EnvTab({ envVars }: { envVars: EnvVar[] }) {
         <span>Updated</span>
       </div>
       <div className="divide-y divide-border-soft">
-        {envVars.map((e, i) => (
+        {vars.map((e, i) => (
           <div
             key={i}
             className="grid grid-cols-1 gap-1.5 px-5 py-3 md:grid-cols-[1.4fr_1.6fr_0.7fr_0.7fr] md:items-center md:gap-4"
@@ -530,24 +576,121 @@ function EnvTab({ envVars }: { envVars: EnvVar[] }) {
           </div>
         ))}
       </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add environment variable"
+        description="Scoped, encrypted at rest, applied on next deploy."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={addVar}
+              disabled={!form.key.trim()}
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              Add variable
+            </Button>
+          </>
+        }
+      >
+        <Field label="Key">
+          <input
+            autoFocus
+            value={form.key}
+            onChange={(e) =>
+              setForm({ ...form, key: e.target.value.toUpperCase() })
+            }
+            placeholder="DATABASE_URL"
+            className={cx(inputClass, "font-mono")}
+          />
+        </Field>
+        <Field label="Value">
+          <input
+            value={form.value}
+            onChange={(e) => setForm({ ...form, value: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addVar();
+            }}
+            placeholder="postgres://…"
+            className={cx(inputClass, "font-mono")}
+          />
+        </Field>
+        <Field label="Scope">
+          <select
+            value={form.scope}
+            onChange={(e) =>
+              setForm({ ...form, scope: e.target.value as EnvVar["scope"] })
+            }
+            className={inputClass}
+          >
+            <option value="all">All environments</option>
+            <option value="production">Production</option>
+            <option value="preview">Preview</option>
+          </select>
+        </Field>
+        <label className="flex items-center justify-between">
+          <span>
+            <span className="kv">Secret</span>
+            <span className="mt-0.5 block text-2xs text-ink-faint">
+              Mask the value in the UI and logs.
+            </span>
+          </span>
+          <Switch
+            on={form.secret}
+            onToggle={() => setForm({ ...form, secret: !form.secret })}
+          />
+        </label>
+      </Modal>
     </div>
   );
 }
 
-function DomainsTab({ domains }: { domains: Domain[] }) {
+function DomainsTab({
+  initial,
+  projectId,
+}: {
+  initial: Domain[];
+  projectId: string;
+}) {
+  const [items, setItems] = useState<Domain[]>(() => [...initial]);
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+
+  function addDomain() {
+    const n = name.trim().toLowerCase().replace(/\s+/g, "");
+    if (!n) return;
+    const domain: Domain = {
+      name: n,
+      kind: "custom",
+      projectId,
+      ssl: "issuing",
+      dns: "pending",
+      primary: false,
+    };
+    setItems((prev) => [...prev, domain]);
+    setName("");
+    setOpen(false);
+  }
+
   return (
     <div className="panel overflow-hidden p-0">
       <div className="flex items-center justify-between border-b border-border-soft px-5 py-3.5">
-        <h2 className="font-display text-sm font-semibold text-ink">
-          Domains
-        </h2>
-        <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 text-2xs font-medium text-ink hover:border-ink-faint">
+        <h2 className="font-display text-sm font-semibold text-ink">Domains</h2>
+        <button
+          onClick={() => setOpen(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 text-2xs font-medium text-ink hover:border-ink-faint"
+        >
           <Plus className="h-3.5 w-3.5" />
           Add domain
         </button>
       </div>
       <div className="divide-y divide-border-soft">
-        {domains.map((d) => (
+        {items.map((d) => (
           <div key={d.name} className="flex items-center gap-3 px-5 py-3.5">
             <Globe className="h-4 w-4 shrink-0 text-info" />
             <div className="min-w-0 flex-1">
@@ -574,6 +717,37 @@ function DomainsTab({ domains }: { domains: Domain[] }) {
           </div>
         ))}
       </div>
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Add a domain"
+        description="Cantila issues SSL and wires DNS automatically."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={addDomain} disabled={!name.trim()}>
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              Add domain
+            </Button>
+          </>
+        }
+      >
+        <Field label="Domain">
+          <input
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addDomain();
+            }}
+            placeholder="app.example.com"
+            className={inputClass}
+          />
+        </Field>
+      </Modal>
     </div>
   );
 }
