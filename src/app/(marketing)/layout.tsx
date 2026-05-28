@@ -22,8 +22,14 @@ export default function MarketingLayout({
 }) {
   return (
     <div className="marketing-light min-h-screen bg-light-bg text-light-ink">
+      <a
+        href="#marketing-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-light-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-light-bg"
+      >
+        Skip to content
+      </a>
       <MarketingHeader />
-      <main>{children}</main>
+      <main id="marketing-content">{children}</main>
       <MarketingFooter />
     </div>
   );

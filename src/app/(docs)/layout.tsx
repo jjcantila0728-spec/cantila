@@ -17,6 +17,7 @@ import { ChevronRight, Home } from "lucide-react";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import DocsSidebar from "@/components/marketing/DocsSidebar";
+import Breadcrumbs from "@/components/marketing/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
 import { FLAT_DOCS } from "@/data/docs-nav";
 import { articleJsonLd, breadcrumbJsonLd } from "@/lib/seo";
@@ -54,6 +55,12 @@ export default function DocsLayout({
 
   return (
     <div className="marketing-light min-h-screen bg-light-bg text-light-ink">
+      <a
+        href="#docs-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-light-ink focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-light-bg"
+      >
+        Skip to content
+      </a>
       <JsonLd payload={payloads} />
       <MarketingHeader />
       <div className="mx-auto w-full max-w-[1280px] px-4 pb-16 pt-8 sm:px-6 lg:px-9">
@@ -72,7 +79,10 @@ export default function DocsLayout({
             </div>
           </aside>
 
-          <article className="max-w-[760px]">{children}</article>
+          <article id="docs-content" className="max-w-[760px]">
+            <Breadcrumbs trail={breadcrumb} />
+            {children}
+          </article>
         </div>
       </div>
       <MarketingFooter />

@@ -137,7 +137,7 @@ export default function OpengraphImage() {
             color: "#5f626c",
           }}
         >
-          CANTILA.COM
+          CANTILA.APP
         </div>
       </div>
     ),
