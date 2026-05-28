@@ -68,6 +68,12 @@ const PUBLIC_ONLY_PREFIXES = [
   "/changelog",
 ];
 
+/** Auth pages that live exclusively on the apex host. Bounced from the
+ *  console host. Centralising the cantila.app canonical URL for sign-in,
+ *  sign-up, forgot, and logout keeps the dashboard host focused on
+ *  authenticated work and gives the marketing site a single auth surface. */
+const AUTH_PREFIXES = ["/login", "/signup", "/forgot", "/logout"];
+
 /** Paths that pass through without auth on any host. */
 const PUBLIC_AUTH_EXACT = new Set([
   "/login",
@@ -107,17 +113,25 @@ function isPublic(pathname: string): boolean {
 }
 
 /** Apply the session gate. Bounces unauthenticated console-gated
- *  requests to /login preserving the intended path. */
+ *  requests to /login preserving the intended path. In production the
+ *  login URL points at the apex (cantila.app) so the auth surface lives
+ *  in one place; local dev keeps a relative redirect. */
 function gate(req: NextRequest): NextResponse {
   const { pathname } = req.nextUrl;
   if (isPublic(pathname)) return NextResponse.next();
   if (req.cookies.has(SESSION_COOKIE)) return NextResponse.next();
 
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = "/login";
-  loginUrl.search = "";
-  if (pathname !== "/") loginUrl.searchParams.set("from", pathname);
-  return NextResponse.redirect(loginUrl);
+  const host = (req.headers.get("host") ?? "").toLowerCase();
+  if (hostIsLocal(host)) {
+    const loginUrl = req.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "";
+    if (pathname !== "/") loginUrl.searchParams.set("from", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+  const from =
+    pathname !== "/" ? `?from=${encodeURIComponent(pathname)}` : "";
+  return NextResponse.redirect(`https://${PUBLIC_HOST}/login${from}`);
 }
 
 export function middleware(req: NextRequest) {
@@ -155,6 +169,14 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(
         `https://${CONSOLE_HOST}/dashboard`,
         307,
+      );
+    }
+    // Auth pages live on the apex only — keeps one canonical sign-in URL
+    // and lets the marketing site own first-touch.
+    if (startsWithAny(pathname, AUTH_PREFIXES)) {
+      return NextResponse.redirect(
+        `https://${PUBLIC_HOST}${pathname}${search}`,
+        308,
       );
     }
     // Public-only paths bounce back to apex.
