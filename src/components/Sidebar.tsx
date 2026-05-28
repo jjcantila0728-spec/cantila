@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   Workflow,
   Plug,
+  LogOut,
 } from "lucide-react";
 import { cx } from "./ui";
 import { ACCOUNT } from "@/lib/mock-data";
@@ -221,24 +222,34 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* account chip */}
+      {/* account chip + sign-out */}
       <div className="border-t border-border-soft p-3">
-        <Link
-          href="/settings"
-          className="flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
-            {chipInitials}
-          </span>
-          <span className="min-w-0 leading-tight">
-            <span className="block truncate text-sm font-medium text-ink">
-              {chipName}
+        <div className="flex items-center gap-1">
+          <Link
+            href="/settings"
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
+              {chipInitials}
             </span>
-            <span className="block truncate font-mono text-[0.65rem] text-ink-faint">
-              {liveAccount ? `@${chipHandle} · ${chipPlan}` : `${chipPlan} plan`}
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-sm font-medium text-ink">
+                {chipName}
+              </span>
+              <span className="block truncate font-mono text-[0.65rem] text-ink-faint">
+                {liveAccount ? `@${chipHandle} · ${chipPlan}` : `${chipPlan} plan`}
+              </span>
             </span>
-          </span>
-        </Link>
+          </Link>
+          <a
+            href="/logout"
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+          >
+            <LogOut className="h-4 w-4" strokeWidth={2} />
+          </a>
+        </div>
       </div>
     </aside>
   );

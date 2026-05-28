@@ -272,7 +272,9 @@ const EMPTY_FORM = {
 };
 
 export default function ProjectsView() {
-  const [items, setItems] = useState<DisplayProject[]>(() => [...projects]);
+  // `null` while we're still detecting the control plane — lets the grid
+  // render a skeleton instead of flashing the mock list to a logged-in user.
+  const [items, setItems] = useState<DisplayProject[] | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
@@ -282,16 +284,21 @@ export default function ProjectsView() {
   const [error, setError] = useState<string | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
 
-  /* Detect the control plane and seed live projects above the mock set.
-   * Also resolves the user's handle so live project cards can link to
-   * /@handle/<name> instead of the legacy /projects/live/<id>. */
+  /* Detect the control plane. In live mode the page renders the user's real
+   * projects only — the mock catalog is offline-demo scaffolding and would
+   * otherwise pollute a logged-in dashboard with cards that don't navigate
+   * (their ids don't exist on the live API). In offline mode the mocks load
+   * as before so the demo build still works without a backend. */
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setItems([...projects]);
+        return;
+      }
       try {
         const [{ projects: live }, acct] = await Promise.all([
           api.listProjects(),
@@ -299,13 +306,10 @@ export default function ProjectsView() {
         ]);
         if (cancelled) return;
         if (acct) setHandle(acct.handle);
-        setItems((prev) => {
-          const liveDisplay = live.map(liveProjectToDisplay);
-          const baseline = prev.filter((p) => !("live" in p && p.live));
-          return [...liveDisplay, ...baseline];
-        });
+        setItems(live.map(liveProjectToDisplay));
       } catch {
-        /* swallow — the empty-state will indicate offline status */
+        // Live but no projects readable — render the empty state, not mocks.
+        if (!cancelled) setItems([]);
       }
     })();
     return () => {
@@ -313,17 +317,18 @@ export default function ProjectsView() {
     };
   }, []);
 
+  const loaded: DisplayProject[] = items ?? [];
   const counts = {
-    all: items.length,
-    live: items.filter((p) => p.status === "live").length,
-    building: items.filter((p) => p.status === "building").length,
-    issues: items.filter(
+    all: loaded.length,
+    live: loaded.filter((p) => p.status === "live").length,
+    building: loaded.filter((p) => p.status === "building").length,
+    issues: loaded.filter(
       (p) => p.status === "crashed" || p.status === "paused",
     ).length,
   };
 
   const q = query.trim().toLowerCase();
-  const filtered = items.filter((p) => {
+  const filtered = loaded.filter((p) => {
     const matchesFilter =
       filter === "all"
         ? true
@@ -355,7 +360,7 @@ export default function ProjectsView() {
           region: form.region,
         });
         const display = liveProjectToDisplay(created);
-        setItems((prev) => [display, ...prev]);
+        setItems((prev) => [display, ...(prev ?? [])]);
         setForm(EMPTY_FORM);
         setModalOpen(false);
         setFilter("all");
@@ -390,7 +395,7 @@ export default function ProjectsView() {
       type: form.type,
       metrics: freshMetrics(),
     };
-    setItems((prev) => [project, ...prev]);
+    setItems((prev) => [project, ...(prev ?? [])]);
     setForm(EMPTY_FORM);
     setModalOpen(false);
     setFilter("all");
@@ -470,7 +475,33 @@ export default function ProjectsView() {
       </div>
 
       {/* grid */}
-      {filtered.length > 0 ? (
+      {items === null ? (
+        <div className="panel flex items-center justify-center gap-2 py-16 text-2xs text-ink-faint">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading projects…
+        </div>
+      ) : loaded.length === 0 && liveMode === true ? (
+        <div className="panel dot-grid flex flex-col items-center justify-center gap-3 py-20 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ember/10 text-ember">
+            <Rocket className="h-5 w-5" strokeWidth={2.2} />
+          </span>
+          <p className="font-display text-base font-semibold text-ink">
+            No projects yet
+          </p>
+          <p className="max-w-sm text-2xs text-ink-faint">
+            Cantila is wired up but you haven't shipped anything yet. Spin up
+            your first workload — a site, an app, a worker, or an AI agent.
+          </p>
+          <Button
+            variant="primary"
+            onClick={() => setModalOpen(true)}
+            className="mt-1"
+          >
+            <Rocket className="h-4 w-4" strokeWidth={2.4} />
+            Create your first project
+          </Button>
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => (
             <ProjectCard key={p.id} p={p} handle={handle} />
