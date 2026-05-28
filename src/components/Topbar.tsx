@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { Menu, X, Search, Plug, BookOpen } from "lucide-react";
-import { cx } from "./ui";
-import { NAV, BrandMark } from "./Sidebar";
+import { SidebarContent } from "./Sidebar";
 import CommandPalette from "./CommandPalette";
 import NotificationsMenu from "./NotificationsMenu";
 
 export default function Topbar() {
   const [open, setOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const pathname = usePathname();
 
   /* global ⌘K / Ctrl+K toggles the command palette */
   useEffect(() => {
@@ -80,61 +76,26 @@ export default function Topbar() {
         <NotificationsMenu />
       </div>
 
-      {/* mobile drawer */}
+      {/* mobile drawer — renders the same <SidebarContent /> the desktop
+          Sidebar uses, so parity is automatic: deploy CTA, nav, account
+          chip, and sign-out all live in the drawer on small screens. */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setOpen(false)}
+            aria-label="Close menu"
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 flex-col border-r border-border bg-surface animate-fade-in">
-            <div className="flex h-16 items-center justify-between border-b border-border-soft px-5">
-              <div className="flex items-center gap-2.5">
-                <BrandMark />
-                <span className="font-display text-lg font-semibold text-ink">
-                  Cantila
-                </span>
-              </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-dim hover:text-ink"
-                aria-label="Close menu"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <nav className="flex-1 overflow-y-auto p-3">
-              {NAV.map((group) => (
-                <div key={group.heading} className="mb-5">
-                  <div className="px-3 pb-2 font-mono text-[0.6rem] uppercase tracking-[0.2em] text-ink-faint">
-                    {group.heading}
-                  </div>
-                  {group.items.map((item) => {
-                    const active =
-                      item.href === "/dashboard"
-                        ? pathname === item.href
-                        : pathname.startsWith(item.href);
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setOpen(false)}
-                        className={cx(
-                          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
-                          active
-                            ? "bg-surface-3 font-medium text-ink"
-                            : "text-ink-dim hover:text-ink",
-                        )}
-                      >
-                        <Icon className="h-4 w-4 text-ink-faint" />
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </div>
-              ))}
-            </nav>
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[88vw] flex-col border-r border-border bg-surface animate-fade-in">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-lg text-ink-dim hover:bg-surface-2 hover:text-ink"
+              aria-label="Close menu"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <SidebarContent onNavigate={() => setOpen(false)} />
           </div>
         </div>
       )}

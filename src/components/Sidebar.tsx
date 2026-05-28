@@ -94,6 +94,22 @@ export const NAV: { heading: string; items: NavItem[] }[] = [
 ];
 
 export default function Sidebar() {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-border bg-surface lg:flex">
+      <SidebarContent />
+    </aside>
+  );
+}
+
+/** The inner Sidebar chrome — brand header, deploy CTA, nav, account
+ *  chip, sign-out. Extracted so the Topbar's mobile drawer renders the
+ *  identical content on small screens. Pass `onNavigate` to close any
+ *  enclosing drawer when a nav item is tapped. */
+export function SidebarContent({
+  onNavigate,
+}: {
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   // Live account chip — populated from /v1/me on mount. Falls back to the
   // mock constant when the proxy is unauthenticated or the control plane
@@ -145,7 +161,7 @@ export default function Sidebar() {
       : pathname === href || pathname.startsWith(href + "/");
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 hidden w-[240px] flex-col border-r border-border bg-surface lg:flex">
+    <>
       {/* brand */}
       <div className="flex h-16 items-center gap-2.5 border-b border-border-soft px-5">
         {effectiveLogoUrl ? (
@@ -172,6 +188,7 @@ export default function Sidebar() {
       <div className="px-3 pt-4">
         <Link
           href="/deploy"
+          onClick={onNavigate}
           className="group flex items-center gap-2 rounded-lg bg-ember px-3 py-2.5 text-sm font-semibold text-[#1a0e08] shadow-[0_8px_24px_-10px_rgba(255,106,61,0.7)] transition-all hover:bg-ember-bright"
         >
           <Rocket className="h-4 w-4" strokeWidth={2.4} />
@@ -195,8 +212,9 @@ export default function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onNavigate}
                       className={cx(
-                        "group relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "group relative flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors",
                         active
                           ? "bg-surface-3 font-medium text-ink"
                           : "text-ink-dim hover:bg-surface-2 hover:text-ink",
@@ -227,9 +245,10 @@ export default function Sidebar() {
         <div className="flex items-center gap-1">
           <Link
             href="/settings"
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
+            onClick={onNavigate}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
               {chipInitials}
             </span>
             <span className="min-w-0 leading-tight">
@@ -245,13 +264,13 @@ export default function Sidebar() {
             href="/logout"
             aria-label="Sign out"
             title="Sign out"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-ink-faint transition-colors hover:bg-surface-2 hover:text-ink"
           >
             <LogOut className="h-4 w-4" strokeWidth={2} />
           </a>
         </div>
       </div>
-    </aside>
+    </>
   );
 }
 
