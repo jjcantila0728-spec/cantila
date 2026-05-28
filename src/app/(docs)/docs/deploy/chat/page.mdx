@@ -1,0 +1,96 @@
+export const metadata = {
+  title: "Cantila Deploy (chat) · docs",
+  description: "Drop files in. Cantila detects the stack. You get a URL.",
+};
+
+# Cantila Deploy (chat)
+
+Cantila Deploy is the conversational front door — the chat at
+**Console → Chat Deploy**. One thread that turns intent or files into a
+running deployment, with the database, domain, mailbox, and SMS number
+already attached.
+
+## Two ways to start a project
+
+### Drop files in
+
+The supported drop shapes:
+
+- A **GitHub URL** — `https://github.com/<owner>/<repo>` (public or, when
+  you've connected GitHub, private).
+- A **zip archive** of the project directory.
+- Individual files dragged into the thread (Cantila assembles them).
+
+Cantila reads the project, detects the stack, infers environment
+variables, generates the build configuration, and starts.
+
+### Describe what you want
+
+Skip the files. Type the project:
+
+```text
+ship me a Next.js blog with Postgres and a contact form
+that posts to a Slack channel
+```
+
+Cantila scaffolds the repo, attaches a Postgres, sets the env vars, and
+ships. You can iterate on the same thread — "switch the contact form to
+email me instead", "swap the theme to dark".
+
+## Iterating on a live project
+
+Once a project is live, the same chat operates on it. Common moves:
+
+```text
+switch the database to MySQL
+add my custom domain blogapp.dev
+give it more memory — 2GB
+why is the latest deploy crashing
+```
+
+Every action shows up as a concrete row in the dashboard's Activity feed
+and is reversible.
+
+## Stack detection — what Cantila knows
+
+| Signal in repo                    | Stack inferred             |
+| --------------------------------- | -------------------------- |
+| `next.config.{js,mjs,ts}`         | Next.js                    |
+| `package.json` with `react-scripts`| Create React App          |
+| `astro.config.*`                  | Astro                      |
+| `svelte.config.*`                 | SvelteKit                  |
+| `requirements.txt` / `pyproject.toml` | Python (FastAPI, Flask) |
+| `Gemfile`                         | Ruby                       |
+| `go.mod`                          | Go                         |
+| `Cargo.toml`                      | Rust                       |
+| `Dockerfile`                      | Containerised, your call   |
+
+If detection misses, drop a `Dockerfile` and Cantila uses it.
+
+## What "auto-wired" means
+
+Every project lands with three services already attached. Their connection
+details live in the project's environment as secrets:
+
+- `DATABASE_URL` — managed Postgres, private to the project
+- `SMTP_*` — project mailbox (Phase 2)
+- `SMS_*` — project SMS number (Phase 3)
+
+See [auto-wired services](/docs/auto-wired) for the full table.
+
+<Note>
+  Both Mail and SMS are sequenced behind their respective carrier paths.
+  The env vars exist today against the stub adapters, so you can write
+  code that targets them; the live delivery flips on as each phase ships.
+</Note>
+
+## When to leave chat
+
+For everything except the first deploy and routine iteration, the CLI is
+faster:
+
+- Tail logs: `cantila logs <project>`
+- Roll back: `cantila rollback <project> <deployId>`
+- Set an env var: `cantila env set <project> KEY=value`
+
+See [the Cantila CLI](/docs/cli).

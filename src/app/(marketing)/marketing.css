@@ -1,0 +1,32 @@
+/* ============================================================
+   Marketing-only overrides.
+
+   The global stylesheet (src/app/globals.css) paints body with
+   the dark `bg` token — correct for the Console + auth surfaces.
+   When a marketing route renders, we use :has() to flip the
+   document background to the light surface so the dark body
+   doesn't leak through scroll bounce / overscroll.
+   ============================================================ */
+
+html:has(.marketing-light),
+html:has(.marketing-light) body {
+  background-color: theme("colors.light-bg");
+}
+
+/* Tone down the global film-grain layer on light paper — it reads
+   as dirt otherwise. */
+html:has(.marketing-light) body::before {
+  opacity: 0.02;
+}
+
+.marketing-light ::selection {
+  background-color: theme("colors.ember-on-light");
+  color: #fbfaf7;
+}
+.marketing-light ::-webkit-scrollbar-thumb {
+  background: theme("colors.light-border");
+  border: 2px solid theme("colors.light-bg");
+}
+.marketing-light ::-webkit-scrollbar-thumb:hover {
+  background: theme("colors.light-ink-faint");
+}

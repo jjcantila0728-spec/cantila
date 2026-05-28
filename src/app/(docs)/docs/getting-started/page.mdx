@@ -1,0 +1,70 @@
+export const metadata = {
+  title: "Getting started · Cantila docs",
+  description: "Sign up, ship your first project from chat, find it live.",
+};
+
+# Getting started
+
+Cantila is a hosting cloud you talk to. Drop files in. Cantila detects the
+stack. You get a URL. This page takes you from no account to a live deploy
+in five steps.
+
+## 1. Create an account
+
+Sign up at [cantila.app/signup](/signup). Email + password is enough; the
+SSO button uses Cantila's bundled OIDC provider when one is configured for
+your organisation.
+
+When the form returns you to the Console, you're on
+[console.cantila.app/dashboard](https://console.cantila.app/dashboard) —
+the dashboard is the front door from here on.
+
+## 2. Open Chat Deploy
+
+From the sidebar, pick **Chat Deploy**. This is the conversational entry
+point — one thread that turns intent or files into a running deployment.
+
+You can do two things:
+
+- **Drop files in.** A zip, a folder, a GitHub repo URL. Cantila reads
+  the project, detects the stack, infers env vars, and starts a build.
+- **Describe what you want.** "Ship me a Next.js blog with a Postgres."
+  Cantila generates the project, scaffolds it, and deploys.
+
+## 3. Watch the build
+
+The thread streams every action: stack detected, deps installed, env
+wired, build started. Every step is a concrete, reversible operation that
+also shows up in the dashboard's Activity feed.
+
+A first deploy typically takes about three minutes. Cantila auto-wires:
+
+- A managed Postgres, with the connection string injected as
+  `DATABASE_URL` before the first build runs.
+- A free `<slug>.cantila.app` subdomain with SSL.
+- A project mailbox (Phase 2 — see [auto-wired services](/docs/auto-wired)).
+- An SMS number (Phase 3 — see [auto-wired services](/docs/auto-wired)).
+
+## 4. Visit your URL
+
+When the build is green, the thread prints `live · https://<slug>.cantila.app`
+and the dashboard's project card flips to **live**. Click through; the
+app is real.
+
+## 5. Take it further
+
+From here:
+
+- **Attach a custom domain.** Project → Domains → Buy or transfer in.
+  DNS, SSL, and email records auto-wire. See [Cantila Domains](/products/domains).
+- **Add the CLI.** `npm i -g @cantila/cli`. See [the Cantila CLI](/docs/cli).
+- **Add Cantila to Claude.** One config snippet to make `cantila_deploy`
+  a native capability in any Claude surface. See [the MCP server](/docs/mcp).
+- **Set up Git push-to-deploy.** Connect a repo so every push builds and
+  every PR gets a preview URL. See [push-to-deploy](/docs/deploy/git).
+
+<Callout tone="ember" title="Ship-language, not engineer-language.">
+  Cantila reaches for "ship", "live", "wired in". If you find yourself
+  writing "provision" or "orchestrate", you're probably overcomplicating
+  something — ask in the thread instead.
+</Callout>

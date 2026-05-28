@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Cantila — ship anything, live">
+  <title>Cantila — ship anything, live</title>
+  <defs>
+    <radialGradient id="ember-glow" cx="50%" cy="0%" r="60%">
+      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.16"/>
+      <stop offset="0.7" stop-color="#ff6a3d" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dot" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#2b2d36"/>
+    </pattern>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1200" height="630" fill="#0b0c0e"/>
+  <rect width="1200" height="630" fill="url(#dot)" opacity="0.35"/>
+  <rect width="1200" height="630" fill="url(#ember-glow)"/>
+
+  <!-- mark, top-left: 96×96 backplate with crystal -->
+  <g transform="translate(96 96)">
+    <rect width="96" height="96" rx="21" fill="#1a1c22"/>
+    <g transform="translate(0 0) scale(3)">
+      <path d="M16 2.5 L24 11 L8 11 Z" fill="#ff8159"/>
+      <path d="M8 11 L24 11 L24 21 L8 21 Z" fill="#ff6a3d"/>
+      <path d="M8 21 L24 21 L16 29.5 Z" fill="#bd4d2b"/>
+      <path d="M16 2.5 L24 11 L24 21 L16 29.5 L8 21 L8 11 Z"
+            fill="none" stroke="#1a0e08" stroke-width="0.6" stroke-linejoin="round"/>
+      <line x1="16" y1="2.5" x2="16" y2="29.5" stroke="#1a0e08" stroke-width="0.35" opacity="0.5"/>
+    </g>
+  </g>
+
+  <!-- wordmark next to the mark -->
+  <text
+    x="220" y="167"
+    font-family="'Clash Display', 'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="600"
+    font-size="64"
+    letter-spacing="-1.28"
+    fill="#ece9e3"
+  >cantila</text>
+
+  <!-- headline -->
+  <text
+    x="96" y="340"
+    font-family="'Clash Display', 'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="600"
+    font-size="92"
+    letter-spacing="-1.84"
+    fill="#ece9e3"
+  >Ship anything, live.</text>
+  <text
+    x="96" y="430"
+    font-family="'Clash Display', 'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="600"
+    font-size="92"
+    letter-spacing="-1.84"
+    fill="#ff6a3d"
+  >From one chat.</text>
+
+  <!-- sub-line -->
+  <text
+    x="96" y="498"
+    font-family="'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="400"
+    font-size="28"
+    fill="#9a9ca6"
+  >The VPS-powered hosting cloud — apps, sites, and AI agents on real servers,</text>
+  <text
+    x="96" y="538"
+    font-family="'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="400"
+    font-size="28"
+    fill="#9a9ca6"
+  >with domain, email, SMS, and database already wired in.</text>
+
+  <!-- corner key/value chrome -->
+  <text
+    x="1104" y="586"
+    text-anchor="end"
+    font-family="'JetBrains Mono', ui-monospace, monospace"
+    font-weight="500"
+    font-size="14"
+    letter-spacing="1.96"
+    fill="#5f626c"
+  >CANTILA.COM</text>
+</svg>

@@ -1,0 +1,133 @@
+export const metadata = {
+  title: "Cantila MCP server · docs",
+  description: "Add the Cantila MCP server to Claude in 30 seconds.",
+};
+
+# Cantila MCP server
+
+Cantila publishes a remote MCP (Model Context Protocol) server. Add it
+once to Claude (Claude Code, the Claude app, Cowork, any MCP host) and
+every Claude surface gets `cantila_deploy`, `cantila_provision_db`,
+`cantila_add_domain`, and 22 more tools as native capabilities.
+
+There's a [marketing overview](/mcp) for the why; this is the how.
+
+## Mint an API key
+
+[Console → Settings → API keys](https://console.cantila.app/settings) →
+**Create key**. Pick a scope:
+
+- **Account** — every project, every domain, full surface.
+- **Project** — locked to one project. Best for repo-scoped agents.
+
+Copy the key (`ct_live_...`) — Cantila hashes it on save, so it's only
+visible once.
+
+## Add to Claude Code
+
+In your repo, create `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "cantila": {
+      "url": "https://api.cantila.app/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer ${CANTILA_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Set `CANTILA_API_KEY` in your shell:
+
+```bash
+export CANTILA_API_KEY=ct_live_...
+```
+
+Restart Claude Code. The Cantila tools appear in the tool list — try
+`/tools` to confirm.
+
+## Add to Claude Desktop
+
+Edit `claude_desktop_config.json` (location depends on OS — see Anthropic
+docs). Add:
+
+```json
+{
+  "mcpServers": {
+    "cantila": {
+      "command": "npx",
+      "args": ["-y", "@cantila/mcp"],
+      "env": {
+        "CANTILA_API_KEY": "ct_live_..."
+      }
+    }
+  }
+}
+```
+
+Restart the app. The "Cantila" provider appears in the connectors list.
+
+## Add to Cowork / Claude.ai
+
+The HTTP endpoint is hosted — paste it into Cowork or claude.ai's MCP
+connector:
+
+```text
+URL:    https://api.cantila.app/v1/mcp
+Auth:   Bearer ct_live_...
+```
+
+No local proxy needed.
+
+## The tool list
+
+| Tool                   | What it does                                                  |
+| ---------------------- | ------------------------------------------------------------- |
+| `cantila_deploy`       | Ship a project (files or repo); return a live URL.            |
+| `cantila_create_project` | Create a project — auto-wired services land on first deploy. |
+| `cantila_list_projects` | List projects and their status.                              |
+| `cantila_get_logs`     | Fetch build and runtime logs.                                 |
+| `cantila_set_env`      | Set or update environment variables.                          |
+| `cantila_provision_db` | Create a managed DB and wire it.                              |
+| `cantila_add_domain`   | Attach a domain and issue SSL.                                |
+| `cantila_scale`        | Resize or scale a deployment.                                 |
+| `cantila_status`       | Report health, services, domains, deploys.                    |
+| `cantila_connect_git`  | Connect a repo for push-to-deploy.                            |
+| `cantila_rollback`     | Roll back to a previous deployment.                           |
+| `cantila_agents_status`| Read what the brain has decided, what's queued for review.    |
+
+Plus automation, connection, and billing tools — the full list is in the
+API reference.
+
+## What one ask looks like
+
+```text
+ship the repo in this folder to Cantila with a Postgres
+and the domain blogapp.dev
+```
+
+Claude calls three tools in sequence and reports back:
+
+```text
+cantila_deploy             ok  build started for repo (next.js detected)
+cantila_provision_db       ok  postgres-17 created, wired into env
+cantila_add_domain         ok  blogapp.dev attached, SSL issued
+live · https://blogapp.dev
+```
+
+## Security
+
+- API keys are hashed at rest; only the prefix is logged.
+- Each tool call is recorded in [Activity](https://console.cantila.app/activity)
+  with the source key fingerprint.
+- Revoke a key from **Settings → API keys** at any time — the next tool
+  call fails with `401`.
+
+<Note>
+  Project-scoped keys can only call tools whose target resolves inside
+  the scoped project. `cantila_list_projects` returns just that project;
+  `cantila_deploy` against another project's id returns `403`.
+</Note>

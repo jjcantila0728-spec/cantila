@@ -1,0 +1,120 @@
+export const metadata = {
+  title: "The Cantila CLI · docs",
+  description: "Install `cantila`, log in, ship.",
+};
+
+# The Cantila CLI
+
+`cantila` is the zero-dep Node 20 binary that wraps the public API. Same
+scoping as an API key. Same actions as the Console. Faster for everything
+once you know the verb.
+
+## Install
+
+```bash
+npm i -g @cantila/cli
+# or, no Node on the box:
+curl -fsSL https://get.cantila.app | sh
+```
+
+Verify:
+
+```bash
+cantila --version
+```
+
+## Log in
+
+```bash
+cantila login
+```
+
+This opens [console.cantila.app/cli](https://console.cantila.app/cli),
+mints an API key scoped to your account, and writes it to
+`~/.cantila/credentials`. The key never leaves your machine.
+
+## Shape
+
+```text
+cantila <noun> [<verb>] [<target>] [--flags]
+```
+
+The noun is a product or platform concept (`mail`, `sms`, `domain`,
+`project`, `deploy`, `env`, `logs`, `scale`, `agents`). The verb defaults
+to `list` when omitted.
+
+## Verb vocabulary
+
+| Verb        | What                                            | Example                              |
+| ----------- | ----------------------------------------------- | ------------------------------------ |
+| `list`      | Show what exists.                               | `cantila projects`                   |
+| `create`    | Make a new thing.                               | `cantila create blog`                |
+| `deploy`    | Ship code.                                      | `cantila deploy blog`                |
+| `add`       | Attach an existing thing to a project.          | `cantila domain add blog example.com`|
+| `remove`    | Detach without deleting.                        | `cantila domain remove blog example.com` |
+| `delete`    | Permanent removal.                              | `cantila projects delete blog`       |
+| `open`      | Open a URL in the browser.                      | `cantila open blog`                  |
+| `status`    | Read state.                                     | `cantila status blog`                |
+| `logs`      | Stream logs (`-f` to follow).                   | `cantila logs blog -f`               |
+| `rollback`  | Return to a previous version.                   | `cantila rollback blog dep_xx9k`     |
+| `scale`     | Change resource sizing.                         | `cantila scale blog --vcpu 2`        |
+| `pause` / `resume` | Stop / start without delete.             | `cantila agents pause`               |
+
+## Common recipes
+
+### Ship a local folder
+
+```bash
+cd my-app
+cantila deploy
+```
+
+Cantila zips, uploads, detects the stack, and prints the live URL.
+
+### Stream logs in real time
+
+```bash
+cantila logs my-app -f
+```
+
+### Roll back to the previous deploy
+
+```bash
+cantila deploys my-app   # find the last green one
+cantila rollback my-app dep_abc123
+```
+
+### Bring an env var from your `.env`
+
+```bash
+cantila env set my-app < .env
+```
+
+### Pause the agent swarm
+
+```bash
+cantila agents pause
+```
+
+Useful when shipping a series of intentional changes you don't want the
+brain to second-guess.
+
+## Output rules
+
+The CLI follows brand voice:
+
+- One line per event. No prose.
+- `✓` for success, `✗` for failure — that's it for emoji.
+- Errors state what happened then the recovery on the next line.
+
+## Configuration
+
+`~/.cantila/credentials` (one line, the API key) and `~/.cantila/config.yaml`:
+
+```yaml
+default_project: blog
+default_region: fsn1
+```
+
+Per-project overrides live in `cantila.json` at the repo root. See
+[push-to-deploy](/docs/deploy/git).

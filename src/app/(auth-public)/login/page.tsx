@@ -1,103 +1,53 @@
 /* ============================================================
    Console sign-in (plan §5.4 — per-user OIDC/SSO auth).
 
-   The form submits to a server action that calls the control
-   plane's /v1/auth/* endpoints, then sets the `cantila_session`
-   cookie the middleware checks. Two submit buttons share one form:
-   "Enter the Console" → password sign-in; "Continue with SSO" →
-   the SSO provider (a stub today — see src/auth/sso.ts on the
-   control plane).
+   Two submit buttons share one form: "Enter the Console" runs
+   password sign-in; "Continue with SSO" runs the SSO provider
+   action (a stub today — see src/auth/sso.ts on the control
+   plane). Both server actions call helpers in src/lib/auth.ts
+   so /signup and /login share the same session-cookie shape
+   (including the parent-domain scope in production).
    ============================================================ */
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { ArrowRight, Github, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
-import { SESSION_COOKIE, CONTROL_PLANE_URL } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  establishSession,
+  fetchSsoInfo,
+  safeFrom,
+} from "@/lib/auth";
 
-export const metadata = { title: "Sign in · Cantila Console" };
+export const metadata = { title: "Sign in · Cantila" };
 
-/** Clamp a redirect target to a safe in-app path. */
-function safeFrom(from: string | undefined | null): string {
-  return typeof from === "string" &&
-    from.startsWith("/") &&
-    !from.startsWith("//")
-    ? from
-    : "/dashboard";
-}
-
-/** POST to a control-plane auth endpoint and, on success, set the
- *  session cookie. Returns an error string on failure (the caller
- *  redirects back to /login with it). */
-async function establishSession(
-  path: string,
-  body: Record<string, unknown>,
-): Promise<string | null> {
-  let data: { token?: string; expiresAt?: string; error?: unknown } | null;
-  try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/v1${path}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-    data = (await res.json().catch(() => null)) as typeof data;
-    if (!res.ok || !data || !data.token) {
-      return data && typeof data.error === "string"
-        ? data.error
-        : "sign-in failed";
-    }
-  } catch {
-    return "could not reach the control plane";
-  }
-  cookies().set(SESSION_COOKIE, data.token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    expires: data.expiresAt ? new Date(data.expiresAt) : undefined,
-  });
-  return null;
-}
-
-/** Email + password sign-in. */
 async function signInWithPassword(formData: FormData) {
   "use server";
+  const from = formData.get("from") as string | null;
   const error = await establishSession("/auth/login", {
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
   });
-  if (error) redirect(`/login?error=${encodeURIComponent(error)}`);
-  redirect(safeFrom(formData.get("from") as string | null));
+  if (error) {
+    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
+    redirect(`/login?error=${encodeURIComponent(error)}${fromQs}`);
+  }
+  redirect(safeFrom(from));
 }
 
-/** SSO sign-in. The bundled stub provider authenticates by the email
- *  in the form; a real OIDC provider would start a redirect flow. */
 async function signInWithSso(formData: FormData) {
   "use server";
+  const from = formData.get("from") as string | null;
   const error = await establishSession("/auth/sso/login", {
     email: String(formData.get("email") ?? ""),
   });
-  if (error) redirect(`/login?error=${encodeURIComponent(error)}`);
-  redirect(safeFrom(formData.get("from") as string | null));
-}
-
-/** Best-effort fetch of which SSO provider is wired, so the page can
- *  reflect a real OIDC IdP vs the bundled stub. Never throws. */
-async function fetchSsoInfo(): Promise<{ label: string; live: boolean }> {
-  try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/info`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const info = (await res.json()) as { label?: unknown; live?: unknown };
-      if (typeof info.label === "string") {
-        return { label: info.label, live: info.live === true };
-      }
-    }
-  } catch {
-    // control plane unreachable — fall through to the default
+  if (error) {
+    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
+    redirect(`/login?error=${encodeURIComponent(error)}${fromQs}`);
   }
-  return { label: "SSO", live: false };
+  redirect(safeFrom(from));
 }
 
 export default async function LoginPage({
@@ -105,7 +55,6 @@ export default async function LoginPage({
 }: {
   searchParams: { from?: string; error?: string };
 }) {
-  // Already signed in — skip the form.
   if (cookies().has(SESSION_COOKIE)) redirect("/dashboard");
 
   const sso = await fetchSsoInfo();
@@ -121,23 +70,22 @@ export default async function LoginPage({
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
-      {/* atmosphere */}
       <div className="dot-grid pointer-events-none absolute inset-0 opacity-40" />
       <div className="glow-ember pointer-events-none absolute inset-x-0 top-0 h-96" />
 
       <div className="relative w-full max-w-sm">
-        {/* brand */}
         <div className="mb-8 flex flex-col items-center text-center">
-          <BrandMark size={46} />
+          <Link href="/" aria-label="Cantila home">
+            <BrandMark size={46} />
+          </Link>
           <h1 className="mt-4 font-display text-xl font-semibold tracking-tight text-ink">
-            Cantila Console
+            Sign in to Cantila
           </h1>
           <p className="mt-1 text-sm text-ink-dim">
             Ship anything, live — from one chat.
           </p>
         </div>
 
-        {/* card */}
         <div className="panel p-6">
           {error && (
             <p className="mb-4 rounded-lg border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
@@ -153,7 +101,7 @@ export default async function LoginPage({
                 type="email"
                 name="email"
                 required
-                defaultValue="jjcantila0728@gmail.com"
+                autoComplete="email"
                 className="mt-1.5 h-10 w-full rounded-lg border border-border bg-bg px-3 text-sm text-ink outline-none transition-colors focus:border-ember placeholder:text-ink-faint"
               />
             </label>
@@ -163,7 +111,7 @@ export default async function LoginPage({
                 type="password"
                 name="password"
                 required
-                defaultValue="prototype"
+                autoComplete="current-password"
                 className="mt-1.5 h-10 w-full rounded-lg border border-border bg-bg px-3 text-sm text-ink outline-none transition-colors focus:border-ember"
               />
             </label>
@@ -184,8 +132,6 @@ export default async function LoginPage({
               <span className="h-px flex-1 bg-border-soft" />
             </div>
 
-            {/* Same form — the SSO action reads the email above. A button's
-                formAction overrides the form's action. */}
             <button
               type="submit"
               formAction={signInWithSso}
@@ -195,6 +141,23 @@ export default async function LoginPage({
               Continue with SSO
             </button>
           </form>
+
+          <p className="mt-5 text-center text-sm text-ink-dim">
+            New here?{" "}
+            <Link
+              href={from ? `/signup?from=${encodeURIComponent(from)}` : "/signup"}
+              className="text-ember hover:text-ember-bright"
+            >
+              Create an account
+            </Link>
+            {" · "}
+            <Link
+              href="/forgot"
+              className="text-ink-dim underline-offset-4 hover:text-ink hover:underline"
+            >
+              Forgot password
+            </Link>
+          </p>
         </div>
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-2xs text-ink-faint">

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="80" viewBox="0 0 400 80" role="img" aria-label="Cantila">
+  <title>Cantila</title>
+  <!-- mark: 56×56 backplate, ember crystal inside -->
+  <g transform="translate(8 12)">
+    <rect width="56" height="56" rx="12" fill="#1a1c22"/>
+    <g transform="translate(0 0) scale(1.75)">
+      <path d="M16 2.5 L24 11 L8 11 Z" fill="#ff8159"/>
+      <path d="M8 11 L24 11 L24 21 L8 21 Z" fill="#ff6a3d"/>
+      <path d="M8 21 L24 21 L16 29.5 Z" fill="#bd4d2b"/>
+      <path d="M16 2.5 L24 11 L24 21 L16 29.5 L8 21 L8 11 Z"
+            fill="none" stroke="#1a0e08" stroke-width="0.6" stroke-linejoin="round"/>
+      <line x1="16" y1="2.5" x2="16" y2="29.5" stroke="#1a0e08" stroke-width="0.35" opacity="0.5"/>
+    </g>
+  </g>
+  <!-- wordmark: gap = 28px (0.5 × mark width) -->
+  <text
+    x="92"
+    y="56"
+    font-family="'Clash Display', 'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="600"
+    font-size="48"
+    letter-spacing="-0.96"
+    fill="#ece9e3"
+  >cantila</text>
+</svg>

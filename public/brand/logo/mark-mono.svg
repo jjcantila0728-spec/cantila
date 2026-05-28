@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 32 32" role="img" aria-label="Cantila">
+  <title>Cantila</title>
+  <!--
+    Single-color mark — the crystal silhouette only.
+    Replace `fill="#ff6a3d"` with the surface-appropriate ink:
+      - dark surfaces: ember (#ff6a3d) or warm white
+      - light surfaces: ember-on-light (#d44e21) or ink (#1a1c22)
+      - print / one-color: black or the chosen brand mono color
+    See brand/identity.md §4 for usage rules.
+  -->
+  <path d="M16 2.5 L24 11 L24 21 L16 29.5 L8 21 L8 11 Z" fill="#ff6a3d"/>
+  <!-- faintest facet hints — visible at lockup sizes, vanish at favicon scale -->
+  <line x1="16" y1="2.5" x2="16" y2="29.5" stroke="#1a0e08" stroke-width="0.4" opacity="0.4"/>
+  <line x1="8" y1="11" x2="24" y2="11" stroke="#1a0e08" stroke-width="0.4" opacity="0.3"/>
+  <line x1="8" y1="21" x2="24" y2="21" stroke="#1a0e08" stroke-width="0.4" opacity="0.3"/>
+</svg>

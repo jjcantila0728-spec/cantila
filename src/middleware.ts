@@ -1,34 +1,118 @@
 /* ============================================================
-   Console auth gate (plan §5.4 — per-user OIDC/SSO auth).
+   Cantila Console middleware — two jobs, one matcher.
 
-   Every route under the (console) group requires a session. This
-   middleware redirects unauthenticated requests to /login, keeping
-   the intended path in ?from= so login can return the user there.
-   /login, /logout and the public /status page are always allowed,
-   and the /api/cantila proxy is excluded by the matcher (its calls
-   are authenticated server-side by CANTILA_API_KEY, unchanged).
+   1) **Host-based routing** between the public marketing site
+      (cantila.app) and the authenticated dashboard
+      (console.cantila.app). www.cantila.app folds into the apex.
+      Both surfaces live in the same Next.js app behind route
+      groups (marketing) / (docs) / (legal) / (auth-public) /
+      (console); this middleware bounces any request that landed
+      on the wrong host so the URL the user sees matches the
+      surface they're looking at.
 
-   The session itself is minted and verified by the control plane —
-   this gate only checks the cookie is present.
+   2) **Auth gate** (plan §5.4) — only the (console) routes
+      require a session. Marketing, docs, legal, /login, /signup,
+      /forgot, /logout, /status and /invite are always public.
+      Anonymous access to a console-gated path bounces to /login
+      preserving ?from= so login returns the user there.
+
+   Local dev (host = localhost) skips the host-based stage and
+   only enforces the auth gate, so the whole app resolves on a
+   single origin.
    ============================================================ */
 
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth";
 
-/** Routes that never require a session. */
-const PUBLIC_PREFIXES = ["/login", "/logout", "/status", "/invite"];
+const PUBLIC_HOST = process.env.CANTILA_PUBLIC_HOST ?? "cantila.app";
+const CONSOLE_HOST =
+  process.env.CANTILA_CONSOLE_HOST ?? `console.${PUBLIC_HOST}`;
+const WWW_HOST = `www.${PUBLIC_HOST}`;
 
-export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+/** Paths that only make sense on the console host. Bounced from the
+ *  public host to console.cantila.app. */
+const CONSOLE_ONLY_PREFIXES = [
+  "/dashboard",
+  "/projects",
+  "/deploy",
+  "/templates",
+  "/domains",
+  "/team",
+  "/settings",
+  "/billing",
+  "/mail",
+  "/sms",
+  "/monitoring",
+  "/databases",
+  "/activity",
+  "/agents",
+  "/capacity",
+  "/mailboxes",
+  "/nodes",
+  "/orgs",
+  "/a2p",
+  "/automations",
+  "/connections",
+];
 
-  const isPublic = PUBLIC_PREFIXES.some(
+/** Paths that only make sense on the public host. Bounced from
+ *  console.cantila.app back to cantila.app. */
+const PUBLIC_ONLY_PREFIXES = [
+  "/pricing",
+  "/products",
+  "/docs",
+  "/legal",
+  "/mcp",
+  "/about",
+  "/contact",
+  "/changelog",
+];
+
+/** Paths that pass through without auth on any host. */
+const PUBLIC_AUTH_EXACT = new Set([
+  "/login",
+  "/signup",
+  "/forgot",
+  "/logout",
+  "/status",
+  "/",
+]);
+const PUBLIC_AUTH_PREFIXES = [
+  "/invite/",
+  ...PUBLIC_ONLY_PREFIXES.map((p) => p + "/"),
+  ...PUBLIC_ONLY_PREFIXES, // exact match too (e.g. "/pricing")
+];
+
+function hostIsLocal(host: string): boolean {
+  const h = host.split(":")[0];
+  return (
+    h === "localhost" ||
+    h === "127.0.0.1" ||
+    h === "0.0.0.0" ||
+    h.endsWith(".local")
+  );
+}
+
+function startsWithAny(pathname: string, prefixes: string[]): boolean {
+  return prefixes.some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
-  if (isPublic) return NextResponse.next();
+}
 
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_AUTH_EXACT.has(pathname)) return true;
+  return PUBLIC_AUTH_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p),
+  );
+}
+
+/** Apply the session gate. Bounces unauthenticated console-gated
+ *  requests to /login preserving the intended path. */
+function gate(req: NextRequest): NextResponse {
+  const { pathname } = req.nextUrl;
+  if (isPublic(pathname)) return NextResponse.next();
   if (req.cookies.has(SESSION_COOKIE)) return NextResponse.next();
 
-  // No session — bounce to login, remembering where they were headed.
   const loginUrl = req.nextUrl.clone();
   loginUrl.pathname = "/login";
   loginUrl.search = "";
@@ -36,10 +120,61 @@ export function middleware(req: NextRequest) {
   return NextResponse.redirect(loginUrl);
 }
 
+export function middleware(req: NextRequest) {
+  const host = (req.headers.get("host") ?? "").toLowerCase();
+  const { pathname, search } = req.nextUrl;
+
+  // Local dev — skip host rerouting, only enforce the auth gate.
+  if (hostIsLocal(host)) return gate(req);
+
+  // www → apex (permanent)
+  if (host === WWW_HOST) {
+    return NextResponse.redirect(
+      `https://${PUBLIC_HOST}${pathname}${search}`,
+      308,
+    );
+  }
+
+  if (host === PUBLIC_HOST) {
+    // Apex: send console-only paths to the dashboard host.
+    if (
+      pathname === "/dashboard" ||
+      startsWithAny(pathname, CONSOLE_ONLY_PREFIXES)
+    ) {
+      return NextResponse.redirect(
+        `https://${CONSOLE_HOST}${pathname}${search}`,
+        302,
+      );
+    }
+    return gate(req);
+  }
+
+  if (host === CONSOLE_HOST) {
+    // Console host: dashboard is the front door.
+    if (pathname === "/") {
+      return NextResponse.redirect(
+        `https://${CONSOLE_HOST}/dashboard`,
+        307,
+      );
+    }
+    // Public-only paths bounce back to apex.
+    if (startsWithAny(pathname, PUBLIC_ONLY_PREFIXES)) {
+      return NextResponse.redirect(
+        `https://${PUBLIC_HOST}${pathname}${search}`,
+        302,
+      );
+    }
+    return gate(req);
+  }
+
+  // Any other host (preview URLs, IP access) — fall through to the gate.
+  return gate(req);
+}
+
 export const config = {
   matcher: [
     // Everything except Next internals, the API proxy, and static
     // metadata files.
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|robots.txt|sitemap.xml).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|manifest.webmanifest|robots.txt|sitemap.xml|brand).*)",
   ],
 };

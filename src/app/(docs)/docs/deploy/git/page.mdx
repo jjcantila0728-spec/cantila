@@ -1,0 +1,85 @@
+export const metadata = {
+  title: "Push-to-deploy (git) · docs",
+  description: "Connect a repo so every push builds and every PR gets a preview URL.",
+};
+
+# Push-to-deploy (git)
+
+Chat Deploy is the front door for one-shot deploys; for an active project
+you'll want every push to ship and every PR to get a preview URL. That's
+push-to-deploy.
+
+## Connect a repository
+
+From the project page → **Source** → **Connect GitHub**. Cantila installs
+the Cantila GitHub App on the repos you grant. Bitbucket and GitLab land
+in a follow-up release; until then, mirror your repo to GitHub or use the
+CLI to push raw tarballs.
+
+Once connected, choose the **production branch** (typically `main`). Every
+push to that branch triggers a deploy.
+
+## Preview environments
+
+Every pull request targeting the production branch gets its own preview:
+
+- A unique URL: `<project>-pr-<n>.cantila.app`
+- A throwaway Postgres database branched off production state (Pro and
+  above — see [Cantila Data](/products/data))
+- The full env, scoped to the preview
+
+When the PR closes or merges, the preview tears down automatically and
+its database branch is deleted.
+
+## Webhook configuration
+
+Cantila configures the repo's webhook for you. The events it subscribes to:
+
+```text
+push         → production deploy
+pull_request → preview lifecycle (opened, synchronize, closed)
+```
+
+You can verify the webhook in **GitHub → Settings → Webhooks**. Don't
+disable it — Cantila uses it as the trigger source.
+
+## Build configuration
+
+Cantila reads:
+
+1. A `cantila.json` at the repo root, if present (overrides everything below)
+2. `package.json` `scripts.build` for Node projects
+3. The detected stack's default (see [Chat Deploy](/docs/deploy/chat))
+
+Example `cantila.json`:
+
+```json
+{
+  "build": {
+    "command": "pnpm build",
+    "output": ".next"
+  },
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
+```
+
+## Rollback
+
+When the latest deploy is bad:
+
+```bash
+cantila rollback <project> <deployId>
+```
+
+Or from the dashboard: **Project → Deploys → Roll back**.
+
+The Uptime agent (see [Cantila Agents](/products/agents)) also
+auto-rolls-back any project that lands in `crashed` state — verified
+30 seconds later.
+
+<Callout tone="ember" title="Honest about the seams.">
+  GitHub is live. Bitbucket and GitLab are scheduled but not yet shipped.
+  Watch the [changelog](/changelog).
+</Callout>

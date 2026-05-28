@@ -1,0 +1,110 @@
+export const metadata = {
+  title: "Plans, billing, invoices · docs",
+  description: "Stripe-backed plans, metered overage, the Billing Portal.",
+};
+
+# Plans, billing, invoices
+
+Cantila uses Stripe at full capability through the Stripe API only —
+there is no parallel in-house billing ledger. Stripe is the system of
+record for every customer, plan, charge, invoice and payment.
+
+The customer-facing surface is small. The mechanics underneath are well
+documented in plan §8.5 if you ever need them.
+
+## Plan tiers
+
+| Tier        | Price       | Best for                                  |
+| ----------- | ----------- | ----------------------------------------- |
+| Hobby       | $0          | Trying Cantila, side projects             |
+| Starter     | ~$10 / mo   | Indie hackers shipping a real product     |
+| Pro         | ~$35 / mo   | Solo builders + small teams               |
+| Agency      | ~$99+ / mo  | Agencies + resellers                      |
+| Dedicated   | Custom      | Workloads needing isolation or an SLA     |
+
+Full breakdown including allowances and overage rates lives on the
+public [pricing page](/pricing).
+
+## Upgrading or downgrading
+
+From [Console → Billing](https://console.cantila.app/billing):
+
+- **Fresh subscribe** (no current subscription) — embedded Stripe
+  Checkout opens inside Cantila chrome when a Stripe publishable key is
+  wired; redirects to hosted Checkout as the fallback.
+- **Plan change** — preview the exact proration (Stripe-sourced via
+  `stripe.invoices.createPreview`, accurate to the cent including tax
+  and credit balance) → confirm → applied.
+- **Payment method update** — opens the Stripe Billing Portal in a new
+  tab. SCA / 3DS handled by Stripe.
+
+## Metered overage
+
+Above the plan's allowance, you pay the meter. Spend caps and budget
+alerts are on by default — you set the ceiling.
+
+| Meter                          | Price                                   |
+| ------------------------------ | --------------------------------------- |
+| CPU-vCore-hour                 | $0.012                                  |
+| RAM GB-hour                    | $0.006                                  |
+| Bandwidth (GB egress)          | $0.04 (ingress is free)                 |
+| Object storage (GB-mo)         | $0.018                                  |
+| Postgres / Mongo (GB-mo)       | $0.18                                   |
+| Email (per 1k, Phase 2)        | $0.30                                   |
+| SMS (per message, Phase 3)     | $0.0075 US local (varies by destination)|
+
+Mail and SMS meters are zero until each Phase ships — until then the
+stub adapter handles the message paths.
+
+## Invoice history
+
+From the Billing page → **Invoices**. Cantila reads
+`stripe.invoices.list({ customer })` server-side and renders each
+invoice with:
+
+- The number and status (`paid` / `open` / `void` / `uncollectible`)
+- Amount and date
+- **View** → opens Stripe's hosted invoice page (includes a Pay button)
+- **Download** → the `invoice_pdf`
+
+The current-period meters live in a separate section labelled
+**estimate** above the real invoice list — the meters are an in-app
+projection until Stripe closes the period; the invoice is the
+authoritative number.
+
+## Dunning
+
+If a payment fails:
+
+- Stripe drives the state machine — `active → past_due → suspended → canceled`.
+- A banner on every Console page describes the current state and the
+  recovery action.
+- When `past_due`, the banner surfaces the failed invoice's hosted
+  page so you can pay that single invoice directly.
+- When `suspended`, new deploys are blocked and always-on apps sleep.
+  Everything restores the moment the card succeeds.
+
+## Webhooks
+
+Cantila signature-verifies and reacts to:
+
+- `checkout.session.completed`
+- `customer.subscription.updated` / `deleted`
+- `invoice.paid` / `invoice.payment_failed`
+
+The handler is idempotent — Stripe retries and can deliver out of
+order, so we dedupe on `event.id`.
+
+## What this means for you
+
+- **One invoice.** Hosting, domains, databases, mail, SMS — all on the
+  same monthly Stripe invoice.
+- **One payment method.** The card on file covers everything Cantila.
+- **No surprise charges.** Spend caps default on, and the dunning
+  banner appears the moment something is off.
+
+<Callout tone="ember" title="The Billing Portal is the source of truth.">
+  Anything Stripe-side — change card, cancel subscription, download a
+  prior invoice — happens in the Billing Portal. It's hosted by Stripe;
+  the link in the Console opens it for you with the right session.
+</Callout>

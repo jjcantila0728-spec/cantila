@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="64" viewBox="0 0 320 64" role="img" aria-label="cantila">
+  <title>cantila</title>
+  <!--
+    The Cantila wordmark — "cantila" in Clash Display 600, lowercase,
+    -0.02em tracking. This file relies on Clash Display being loaded
+    in the consuming page (Fontshare CDN or local file).
+
+    For embedding contexts where Clash Display is unavailable, run this
+    file through Figma/Illustrator outline-text and save as
+    wordmark-outlined.svg. See brand/identity.md §4.4.
+  -->
+  <text
+    x="0"
+    y="46"
+    font-family="'Clash Display', 'Switzer', ui-sans-serif, system-ui, sans-serif"
+    font-weight="600"
+    font-size="56"
+    letter-spacing="-1.12"
+    fill="#ece9e3"
+  >cantila</text>
+</svg>

@@ -6,7 +6,11 @@
 
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, CONTROL_PLANE_URL } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  CONTROL_PLANE_URL,
+  sessionCookieOptions,
+} from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -24,6 +28,8 @@ export async function GET(req: NextRequest) {
     }
   }
   const res = NextResponse.redirect(new URL("/login", req.url));
-  res.cookies.set(SESSION_COOKIE, "", { path: "/", maxAge: 0 });
+  // Match the cookie domain set at login so the clear actually lands —
+  // otherwise the parent-domain cookie would be orphaned on logout.
+  res.cookies.set(SESSION_COOKIE, "", { ...sessionCookieOptions(), maxAge: 0 });
   return res;
 }

@@ -1,0 +1,87 @@
+export const metadata = {
+  title: "Auto-wired services · docs",
+  description: "The DB, mailbox, and SMS number every Cantila project ships with.",
+};
+
+# Auto-wired services
+
+Every project deployed on Cantila gets its own dedicated database, its
+own email service, and its own SMS number — provisioned together with
+the project and wired into the environment before the first build runs.
+
+## What's wired, by phase
+
+| Service           | Env var(s)                                              | Phase     | Default state               |
+| ----------------- | ------------------------------------------------------- | --------- | --------------------------- |
+| Postgres          | `DATABASE_URL`                                          | Live      | Real, running on Hetzner    |
+| Object storage    | `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_KEY`     | Live      | S3-compatible, per-project  |
+| Mailbox + SMTP    | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`      | Phase 2   | Stub adapter today          |
+| SMS number        | `SMS_FROM`, `SMS_API_KEY`                               | Phase 3   | Stub adapter today          |
+| Cantila API key   | `CANTILA_API_KEY` (scoped to the project)               | Live      | Used by the runtime SDK     |
+
+`Phase 2` and `Phase 3` env vars exist today against the stub adapters —
+you can write code that targets them and it will work; the live carrier
+delivery flips on as each phase ships. See the [changelog](/changelog).
+
+## How the wiring works
+
+When you create a project:
+
+1. **Project row** is created in the control plane.
+2. **Database** is provisioned in the managed Postgres cluster. A per-
+   project user and database are created; `DATABASE_URL` is generated.
+3. **Mailbox** is created at `m_<random>@cantila.app` (Phase 2 — this
+   becomes `<project>@<your-domain>` once Mail goes live).
+4. **SMS number** is leased from the inventory (Phase 3 — until then a
+   placeholder routes inbound to the project webhook).
+5. **Cantila API key** scoped to the project is minted.
+6. **Env injection.** All of the above are written to the project's
+   secrets, marked `cantila-managed: true`, and locked from user
+   overwrite.
+7. **First build** runs with the env in place.
+
+## Sleeping when idle
+
+Auto-wired services follow the same sleep policy as the project itself:
+
+- **Hobby** projects sleep when idle (~10 minutes of no traffic). Their
+  database connections close; storage buckets stay live. Wake on next
+  request.
+- **Starter / Pro / Agency** projects pinned always-on stay live.
+
+A sleeping database doesn't bill on the meter; storage and number leases
+keep their fixed monthly cost regardless of sleep.
+
+## Tearing down
+
+Deleting a project tears down its auto-wired services in lockstep:
+
+```text
+project       deleted
+db            dropped
+storage       bucket emptied + dropped
+mailbox       deleted (Phase 2)
+sms number    released (Phase 3)
+domain        retained (your domain, your call)
+```
+
+The domain stays — it's a registrar product, billed separately from the
+project. Manage from **Console → Domains**.
+
+## Why bundled
+
+Plan §4.2 says it best:
+
+> Every project deployed on Cantila is automatically provisioned with its
+> own dedicated managed database, its own email service, and its own SMS
+> number. These services are created together with the project, isolated
+> to it, and connected before the first build runs.
+
+The whole point: a builder ships an app and `DATABASE_URL` already
+resolves. No second vendor signup. No glue code. One bill.
+
+<Callout tone="info">
+  Want to bring your own Postgres / S3 / mailbox? Override the
+  Cantila-managed env vars at the project level — Cantila respects user
+  overwrites and stops managing the slot until you delete the override.
+</Callout>
