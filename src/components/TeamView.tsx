@@ -128,7 +128,9 @@ function buildAcceptUrl(token: string): string {
 }
 
 export default function TeamView() {
-  const [members, setMembers] = useState<DisplayMember[]>(() => [...team]);
+  // Empty until the effect resolves live mode — keeps mock teammates out of
+  // a logged-in user's roster.
+  const [members, setMembers] = useState<DisplayMember[]>([]);
   const [invites, setInvites] = useState<ApiInvite[]>([]);
   const [open, setOpen] = useState(false);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
@@ -159,15 +161,16 @@ export default function TeamView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setMembers([...team]);
+        return;
+      }
       try {
         const { members: live } = await api.listMembers();
         if (cancelled) return;
-        if (live.length > 0) {
-          setMembers(live.map(toDisplayMember));
-        }
+        setMembers(live.map(toDisplayMember));
       } catch {
-        /* swallow — keep mock seed */
+        /* swallow — empty state will render */
       }
       void refreshInvites();
     })();

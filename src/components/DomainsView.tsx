@@ -40,10 +40,10 @@ function hash(s: string): number {
 }
 
 export default function DomainsView() {
-  const [registered, setRegistered] = useState<Registered[]>(() => [
-    ...registrarDomains,
-  ]);
-  const [connected, setConnected] = useState<Domain[]>(() => [...domains]);
+  // Empty until the effect below resolves the control-plane state — keeps
+  // mock rows from leaking into a logged-in user's view.
+  const [registered, setRegistered] = useState<Registered[]>([]);
+  const [connected, setConnected] = useState<Domain[]>([]);
 
   const [searchInput, setSearchInput] = useState("");
   const [results, setResults] = useState<Result[] | null>(null);
@@ -63,7 +63,11 @@ export default function DomainsView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setRegistered([...registrarDomains]);
+        setConnected([...domains]);
+        return;
+      }
       try {
         const { registrations } = await api.listRegistrations();
         if (cancelled) return;
@@ -79,14 +83,9 @@ export default function DomainsView() {
           privacy: r.whoisPrivacy,
           price: `$${(r.pricePerYearCents / 100).toFixed(2)} / yr`,
         }));
-        // Live registrations on top, mock entries kept below so the page
-        // still feels populated when the CP is empty.
-        setRegistered((prev) => [
-          ...live,
-          ...prev.filter((r) => !live.find((l) => l.name === r.name)),
-        ]);
+        setRegistered(live);
       } catch {
-        /* swallow */
+        /* swallow — empty state will render */
       }
     })();
     return () => {

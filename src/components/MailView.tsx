@@ -179,13 +179,11 @@ function MailboxCard({ mb }: { mb: Mailbox }) {
 const QUOTAS = [5, 10, 20];
 
 export default function MailView() {
-  const [boxes, setBoxes] = useState<Mailbox[]>(() => [...mockMailboxes]);
-  const [mailDomains, setMailDomains] = useState<MailDomain[]>(() => [
-    ...mockMailDomains,
-  ]);
-  const [aliasesList, setAliasesList] = useState<MailAlias[]>(() => [
-    ...mailAliases,
-  ]);
+  // Empty until the effect resolves live mode — prevents mock mailboxes,
+  // domains, and aliases from flashing into a logged-in user's view.
+  const [boxes, setBoxes] = useState<Mailbox[]>([]);
+  const [mailDomains, setMailDomains] = useState<MailDomain[]>([]);
+  const [aliasesList, setAliasesList] = useState<MailAlias[]>([]);
   // Plan §4.4 — live aliases (when the CP is live, these replace the
   // mock seed end-to-end and carry the `id` field mutation needs).
   // Null when offline / before first load — the mock seed renders.
@@ -224,7 +222,12 @@ export default function MailView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setBoxes([...mockMailboxes]);
+        setMailDomains([...mockMailDomains]);
+        setAliasesList([...mailAliases]);
+        return;
+      }
       // Plan §4.4 / §17.2 — pull MailProvider info up front so the
       // header badge can render `live` / `stub` immediately. Best-effort.
       void api
@@ -248,12 +251,7 @@ export default function MailView() {
           status: m.status === "active" ? "active" : "provisioning",
           member: m.projectSlug,
         }));
-        // CP-managed mailboxes go on top. Mock seed kept beneath to keep the
-        // demo populated when the CP is empty.
-        setBoxes((prev) => [
-          ...liveBoxes,
-          ...prev.filter((b) => !liveBoxes.find((l) => l.address === b.address)),
-        ]);
+        setBoxes(liveBoxes);
         const liveDomains: MailDomain[] = fleet.sendingDomains.map((d) => ({
           domain: d.domain,
           spf: "ok",
@@ -264,14 +262,9 @@ export default function MailView() {
           sent30d: 0,
           purpose: `Auto-wired · ${d.mailboxes} mailbox${d.mailboxes === 1 ? "" : "es"} · projects ${d.projects.join(", ")}`,
         }));
-        setMailDomains((prev) => [
-          ...liveDomains,
-          ...prev.filter(
-            (p) => !liveDomains.find((l) => l.domain === p.domain),
-          ),
-        ]);
+        setMailDomains(liveDomains);
       } catch {
-        /* swallow — keep mock seed */
+        /* swallow — empty state will render */
       }
       // Live aliases — replace the mock seed entirely when the CP
       // returns any rows; if it returns none, keep the mock so the demo
@@ -289,18 +282,16 @@ export default function MailView() {
         // Seed the create-form's project picker with the first project
         // so the form is usable without an extra click.
         if (projects[0]) setAliasProject(projects[0].id);
-        if (aliases.length > 0) {
-          setAliasesList(
-            aliases.map((a) => ({
-              address: a.address,
-              target: a.target,
-              kind: a.kind,
-              projectId: a.projectId,
-            })),
-          );
-        }
+        setAliasesList(
+          aliases.map((a) => ({
+            address: a.address,
+            target: a.target,
+            kind: a.kind,
+            projectId: a.projectId,
+          })),
+        );
       } catch {
-        /* swallow — keep mock seed */
+        /* swallow — empty state will render */
       }
       // Live inbound mail (plan §4.4 — two-way mail). The mock seed has
       // no inbound concept, so an empty list here just renders the

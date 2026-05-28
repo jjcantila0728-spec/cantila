@@ -274,7 +274,9 @@ const COUNTRIES = ["US", "GB"];
 const TYPES: PhoneNumber["type"][] = ["Local", "Toll-free", "Short code"];
 
 export default function SmsView() {
-  const [nums, setNums] = useState<PhoneNumber[]>(() => [...mockPhoneNumbers]);
+  // Empty until the effect resolves live mode — keeps mock phone numbers out
+  // of a logged-in user's fleet.
+  const [nums, setNums] = useState<PhoneNumber[]>([]);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   /** Live SMS OTP / 2FA rollup (plan §4.5 / §15.2). Null until the
    *  control plane answers; the Verification API section falls back to
@@ -330,7 +332,10 @@ export default function SmsView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setNums([...mockPhoneNumbers]);
+        return;
+      }
       try {
         const [fleet, otpStats, owned, inbox, calls] = await Promise.all([
           api.getSmsFleet(),
@@ -361,14 +366,9 @@ export default function SmsView() {
           projectId: n.projectSlug,
           sent30d: 0,
         }));
-        // Live numbers above the mock seed (kept so the demo stays populated
-        // when the CP has no projects yet).
-        setNums((prev) => [
-          ...live,
-          ...prev.filter((p) => !live.find((l) => l.number === p.number)),
-        ]);
+        setNums(live);
       } catch {
-        /* swallow */
+        /* swallow — empty state will render */
       }
     })();
     return () => {

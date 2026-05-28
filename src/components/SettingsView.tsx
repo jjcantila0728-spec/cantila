@@ -74,7 +74,9 @@ function formatCreated(iso: string): string {
 }
 
 export default function SettingsView() {
-  const [keys, setKeys] = useState<ApiKey[]>(() => [...SEED_KEYS]);
+  // Empty until the effect resolves live mode — keeps mock API keys out of
+  // a logged-in user's key list.
+  const [keys, setKeys] = useState<ApiKey[]>([]);
   const [keyModal, setKeyModal] = useState(false);
   const [keyName, setKeyName] = useState("");
   const [keyScope, setKeyScope] = useState<"read" | "deploy" | "admin">("deploy");
@@ -192,7 +194,10 @@ export default function SettingsView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setKeys([...SEED_KEYS]);
+        return;
+      }
       // Four calls fan out in parallel — none depend on each other.
       const [whoamiResult, accountResult, keysResult, subResult] =
         await Promise.allSettled([

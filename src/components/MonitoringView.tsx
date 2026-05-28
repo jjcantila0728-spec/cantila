@@ -96,16 +96,12 @@ function UptimeBar({ history }: { history: CheckStatus[] }) {
 /* ---------- view ---------- */
 
 export default function MonitoringView() {
-  const [alertList, setAlertList] = useState<Alert[]>(() => [...mockAlerts]);
-  const [monitors, setMonitors] = useState<UptimeMonitor[]>(() => [
-    ...mockUptimeMonitors,
-  ]);
-  const [statusList, setStatusList] = useState<StatusComponent[]>(() => [
-    ...mockStatusComponents,
-  ]);
-  const [incidentList, setIncidentList] = useState<Incident[]>(() => [
-    ...mockIncidents,
-  ]);
+  // Empty until the effect resolves live mode — keeps mock alerts/incidents
+  // off a logged-in user's monitoring dashboard.
+  const [alertList, setAlertList] = useState<Alert[]>([]);
+  const [monitors, setMonitors] = useState<UptimeMonitor[]>([]);
+  const [statusList, setStatusList] = useState<StatusComponent[]>([]);
+  const [incidentList, setIncidentList] = useState<Incident[]>([]);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   const [snapshotAt, setSnapshotAt] = useState<string | null>(null);
 
@@ -182,7 +178,13 @@ export default function MonitoringView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setAlertList([...mockAlerts]);
+        setMonitors([...mockUptimeMonitors]);
+        setStatusList([...mockStatusComponents]);
+        setIncidentList([...mockIncidents]);
+        return;
+      }
       void load();
       interval = window.setInterval(load, 10_000);
     })();

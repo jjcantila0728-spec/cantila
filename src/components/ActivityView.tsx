@@ -102,7 +102,9 @@ function relative(iso: string): string {
 export default function ActivityView() {
   const [filter, setFilter] = useState<Kind | "all">("all");
   const [query, setQuery] = useState("");
-  const [events, setEvents] = useState<Activity[]>(() => [...activity]);
+  // Empty until the effect resolves live mode — keeps mock events out of a
+  // logged-in user's audit log.
+  const [events, setEvents] = useState<Activity[]>([]);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   // Plan §5.5 — white-label audit. Activity rows carry the actor's
   // accountId; we resolve those to human-readable display names via
@@ -140,7 +142,10 @@ export default function ActivityView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setEvents([...activity]);
+        return;
+      }
       // Fire activity load + orgs map fetch in parallel — the orgs
       // call is session-only (401 without one), so swallow failures.
       void load();

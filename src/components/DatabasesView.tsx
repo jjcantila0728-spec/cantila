@@ -211,10 +211,10 @@ const EMPTY_BUCKET = {
 type LiveBucket = StorageBucket & { liveId?: string };
 
 export default function DatabasesView() {
-  const [items, setItems] = useState<Database[]>(() => [...databases]);
-  const [buckets, setBuckets] = useState<LiveBucket[]>(() => [
-    ...storageBuckets,
-  ]);
+  // Start empty so live mode doesn't see mock rows flash in. Resolved by the
+  // effect below: live → real rows; offline → fall back to the mock seed.
+  const [items, setItems] = useState<Database[]>([]);
+  const [buckets, setBuckets] = useState<LiveBucket[]>([]);
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -235,7 +235,11 @@ export default function DatabasesView() {
       const ok = await isControlPlaneLive();
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
+      if (!ok) {
+        setItems([...databases]);
+        setBuckets([...storageBuckets]);
+        return;
+      }
       try {
         const [{ databases: liveDbs }, { buckets: liveBuckets }, { projects: liveProjs }] =
           await Promise.all([
@@ -259,10 +263,7 @@ export default function DatabasesView() {
           linkedProjectId: d.projectSlug,
           backupsAt: "03:00 daily",
         }));
-        setItems((prev) => [
-          ...mapped,
-          ...prev.filter((db) => !mapped.find((m) => m.id === db.id)),
-        ]);
+        setItems(mapped);
         const liveB: LiveBucket[] = liveBuckets.map((b) => ({
           id: b.id,
           liveId: b.id,
@@ -274,12 +275,9 @@ export default function DatabasesView() {
           cdn: b.cdn,
           createdAt: "just now",
         }));
-        setBuckets((prev) => [
-          ...liveB,
-          ...prev.filter((p) => !liveB.find((l) => l.name === p.name)),
-        ]);
+        setBuckets(liveB);
       } catch {
-        /* swallow — keep mock seed */
+        /* swallow — empty state will render */
       }
     })();
     return () => {
