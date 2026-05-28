@@ -440,6 +440,38 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  /** Begin the /forgot password reset flow (plan §5.4 / v1.18). Always
+   *  returns `{ ok: true }` regardless of whether the email is on file —
+   *  the Console renders a generic confirmation. When the stub MTA is
+   *  wired the response also carries `debugLink` so dev/smoke flows can
+   *  complete the round-trip without an inbox. */
+  requestPasswordReset: (input: { email: string }) =>
+    request<{ ok: true; debugLink?: string }>("/auth/forgot", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  /** Complete the /forgot flow with the token from the email link. */
+  completePasswordReset: (input: { token: string; newPassword: string }) =>
+    request<{ userId: string }>("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  /** Request a new email-verify link for the signed-in user. */
+  requestEmailVerification: () =>
+    request<{ ok: true; debugLink?: string }>(
+      "/auth/verify-email/request",
+      { method: "POST", body: "{}" },
+    ),
+
+  /** Complete the email-verify flow with the token from the email link. */
+  completeEmailVerification: (input: { token: string }) =>
+    request<{ userId: string; verifiedAt: string }>(
+      "/auth/verify-email/confirm",
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
   /** Plan §5.5 — white-label per-account branding. Patches the
    *  currently-resolved account (act-as honoured at the proxy /
    *  control plane). Pass empty string to clear a field; omit it

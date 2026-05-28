@@ -72,7 +72,16 @@ const PUBLIC_ONLY_PREFIXES = [
  *  console host. Centralising the cantila.app canonical URL for sign-in,
  *  sign-up, forgot, and logout keeps the dashboard host focused on
  *  authenticated work and gives the marketing site a single auth surface. */
-const AUTH_PREFIXES = ["/login", "/signup", "/forgot", "/logout"];
+const AUTH_PREFIXES = [
+  "/login",
+  "/signup",
+  "/forgot",
+  "/logout",
+  // Token-bearing pages live with the rest of the auth surface on
+  // the apex (plan §5.4 / v1.18).
+  "/reset",
+  "/verify",
+];
 
 /** Paths that pass through without auth on any host. */
 const PUBLIC_AUTH_EXACT = new Set([
@@ -85,6 +94,10 @@ const PUBLIC_AUTH_EXACT = new Set([
 ]);
 const PUBLIC_AUTH_PREFIXES = [
   "/invite/",
+  // `/reset/<token>` and `/verify/<token>` — the URL token IS the
+  // credential, so these pages are reachable signed-out.
+  "/reset/",
+  "/verify/",
   ...PUBLIC_ONLY_PREFIXES.map((p) => p + "/"),
   ...PUBLIC_ONLY_PREFIXES, // exact match too (e.g. "/pricing")
 ];

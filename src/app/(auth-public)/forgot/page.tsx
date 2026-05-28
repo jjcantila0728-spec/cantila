@@ -1,27 +1,48 @@
 /* ============================================================
-   Password-reset placeholder.
+   Password-reset request page (plan §5.4 / v1.18).
 
-   The reset flow needs Cantila Mail to deliver the reset link
-   (the control-plane MailProvider is still infra-blocked, see
-   Cantila_Complete_Plan.md §15.2). Until Mail lands we show
-   a single honest paragraph and a recovery path — email JJ.
-   This is the "honest about the seams" principle from
-   brand/voice.md §4 made literal.
+   Posts the email to `POST /v1/auth/forgot` — the control plane
+   mints a one-shot token, hands it to the MailProvider, and the
+   user gets a link. We always render the same confirmation page
+   regardless of whether the email was on file, so an unauthenticated
+   visitor can't enumerate the user table.
+
+   While Cantila Mail is still infra-blocked, the control plane's
+   stub MailProvider returns the reset link inline on
+   `result.debugLink`. We surface it on the confirmation so the
+   developer / smoke test can complete the flow without an inbox.
+   The production live-MTA path never returns it.
    ============================================================ */
 
-import Link from "next/link";
-import { ArrowLeft, Rocket } from "lucide-react";
-import { BrandMark } from "@/components/Sidebar";
-import { buildPageMetadata } from "@/lib/seo";
+"use client";
 
-export const metadata = buildPageMetadata({
-  title: "Reset password",
-  description: "Reset your Cantila account password.",
-  path: "/forgot",
-  noindex: true,
-});
+import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { ArrowLeft } from "lucide-react";
+import { BrandMark } from "@/components/Sidebar";
+import { api } from "@/lib/api";
 
 export default function ForgotPage() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [debugLink, setDebugLink] = useState<string | null>(null);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await api.requestPasswordReset({ email: email.trim() });
+      setDebugLink(res.debugLink ?? null);
+      setSent(true);
+    } catch {
+      // Same UX on transport failures — the user can retry.
+      setSent(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4">
       <div className="dot-grid pointer-events-none absolute inset-0 opacity-40" />
@@ -37,42 +58,67 @@ export default function ForgotPage() {
           </h1>
         </div>
 
-        <div className="panel space-y-3 p-6 text-sm text-ink-dim">
-          <p>
-            Self-service reset lands when Cantila Mail ships — it needs the
-            mail server to deliver the reset link, and that piece is still
-            being wired up.
-          </p>
-          <p>
-            In the meantime, email{" "}
-            <a
-              href="mailto:founder@cantila.app?subject=Reset%20my%20password"
-              className="text-ember hover:text-ember-bright"
-            >
-              founder@cantila.app
-            </a>
-            . JJ resets it by hand within the day.
-          </p>
-
-          <div className="!mt-5 border-t border-border-soft pt-4">
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-1.5 text-sm text-ink hover:text-ember"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to sign-in
-            </Link>
+        {sent ? (
+          <div className="panel space-y-3 p-6 text-sm text-ink-dim">
+            <p>
+              If an account exists for that email, we just sent it a
+              reset link. The link expires in 1 hour.
+            </p>
+            {debugLink ? (
+              <div className="rounded-md border border-amber-400/40 bg-amber-400/5 p-3 text-xs text-amber-200">
+                <p className="font-medium text-amber-100">
+                  Dev mode (stub MTA wired) — your link:
+                </p>
+                <p className="mt-1 break-all font-mono">{debugLink}</p>
+              </div>
+            ) : null}
+            <div className="!mt-5 border-t border-border-soft pt-4">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-sm text-ink hover:text-ember"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to sign-in
+              </Link>
+            </div>
           </div>
-        </div>
-
-        <p className="mt-5 flex items-center justify-center gap-1.5 text-2xs text-ink-faint">
-          <Rocket className="h-3 w-3 text-ember" />
-          Cantila Mail · Phase 2 — see{" "}
-          <Link href="/changelog" className="hover:text-ink hover:underline">
-            changelog
-          </Link>
-          .
-        </p>
+        ) : (
+          <form className="panel space-y-4 p-6" onSubmit={onSubmit}>
+            <div>
+              <label
+                htmlFor="reset-email"
+                className="block text-xs font-medium text-ink-dim"
+              >
+                Email
+              </label>
+              <input
+                id="reset-email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-1 w-full rounded-md border border-border-soft bg-bg-base px-3 py-2 text-sm text-ink outline-none focus:border-ember"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={busy || email.length === 0}
+              className="w-full rounded-md bg-ember px-3 py-2 text-sm font-medium text-bg-base hover:bg-ember-bright disabled:opacity-50"
+            >
+              {busy ? "Sending…" : "Send reset link"}
+            </button>
+            <div className="border-t border-border-soft pt-3">
+              <Link
+                href="/login"
+                className="inline-flex items-center gap-1.5 text-xs text-ink-dim hover:text-ember"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Back to sign-in
+              </Link>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
