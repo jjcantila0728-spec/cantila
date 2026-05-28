@@ -4,7 +4,8 @@
   "private": true,
   "description": "Cantila Console — the unified control surface for the Cantila hosting cloud (MVP prototype)",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/sync-brand.mjs && next dev",
+    "prebuild": "node scripts/sync-brand.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

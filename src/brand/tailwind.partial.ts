@@ -9,26 +9,31 @@
 
 export const cantilaTheme = {
   colors: {
+    // surfaces — deep, slightly warm charcoal
     bg: "#0b0c0e",
     surface: "#131419",
     "surface-2": "#1a1c22",
     "surface-3": "#22242c",
     border: "#2b2d36",
     "border-soft": "#202128",
+    // ink
     ink: "#ece9e3",
     "ink-dim": "#9a9ca6",
     "ink-faint": "#5f626c",
+    // signature ember accent — "ship it"
     ember: "#ff6a3d",
     "ember-bright": "#ff8159",
     "ember-dim": "#bd4d2b",
     "ember-on-light": "#d44e21",
     "ember-ink": "#1a0e08",
+    // status
     live: "#3ddc84",
     "live-dim": "#1d6b41",
     warn: "#f6b352",
     down: "#ff5d6e",
     info: "#6aa3ff",
     violet: "#a78bfa",
+    // light-mode variants (marketing only)
     "light-bg": "#fbfaf7",
     "light-surface": "#f4f1ea",
     "light-surface-2": "#eae6dd",
