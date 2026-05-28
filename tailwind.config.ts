@@ -1,5 +1,5 @@
 import type { Config } from "tailwindcss";
-import { cantilaTheme } from "../brand/tokens/tailwind.partial";
+import { cantilaTheme } from "./src/brand/tailwind.partial";
 
 const config: Config = {
   content: [
