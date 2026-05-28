@@ -12,8 +12,14 @@
 import Link from "next/link";
 import { ArrowLeft, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Reset password · Cantila" };
+export const metadata = buildPageMetadata({
+  title: "Reset password",
+  description: "Reset your Cantila account password.",
+  path: "/forgot",
+  noindex: true,
+});
 
 export default function ForgotPage() {
   return (

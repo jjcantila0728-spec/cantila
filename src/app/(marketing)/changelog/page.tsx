@@ -8,12 +8,14 @@
 
 import HeroDarkBand from "@/components/marketing/HeroDarkBand";
 import { Section } from "@/components/marketing/ui";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Changelog · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Changelog",
   description:
     "What shipped, when. Mirrors §15.1 of the Cantila Complete Plan.",
-};
+  path: "/changelog",
+});
 
 type Entry = {
   version: string;

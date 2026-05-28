@@ -18,12 +18,15 @@ import {
   SecondaryCta,
   Section,
 } from "@/components/marketing/ui";
+import JsonLd from "@/components/JsonLd";
+import { buildPageMetadata, faqJsonLd } from "@/lib/seo";
 
-export const metadata = {
-  title: "Pricing · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Pricing",
   description:
     "Start free. Pay for what you ship. Plan tiers, metered overages, and the cheapest-in-market domain catalog.",
-};
+  path: "/pricing",
+});
 
 const OVERAGES = [
   { meter: "CPU-vCore-hour", price: "$0.012", note: "Above plan allowance" },
@@ -65,6 +68,7 @@ const FAQ = [
 export default function PricingPage() {
   return (
     <>
+      <JsonLd payload={faqJsonLd(FAQ.map(({ q, a }) => ({ q, a })))} />
       <HeroDarkBand
         eyebrow="Pricing"
         title={
@@ -108,8 +112,8 @@ export default function PricingPage() {
         title="Above the plan allowance, you pay the meter."
         description="Spend caps and budget alerts on by default. You set the ceiling; Cantila never quietly pushes past it."
       >
-        <div className="overflow-hidden rounded-2xl border border-light-border">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-light-border">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="bg-light-surface text-left font-mono text-2xs uppercase tracking-cantila-kv text-light-ink-faint">
                 <th className="px-4 py-3">Meter</th>
@@ -123,8 +127,8 @@ export default function PricingPage() {
                   key={row.meter}
                   className={i % 2 === 0 ? "bg-light-bg" : "bg-light-surface/40"}
                 >
-                  <td className="px-4 py-3 text-light-ink">{row.meter}</td>
-                  <td className="px-4 py-3 font-mono font-semibold text-ember-on-light">
+                  <td className="whitespace-nowrap px-4 py-3 text-light-ink">{row.meter}</td>
+                  <td className="whitespace-nowrap px-4 py-3 font-mono font-semibold text-ember-on-light">
                     {row.price}
                   </td>
                   <td className="px-4 py-3 text-light-ink-dim">{row.note}</td>

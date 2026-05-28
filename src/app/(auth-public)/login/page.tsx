@@ -20,8 +20,15 @@ import {
   fetchSsoInfo,
   safeFrom,
 } from "@/lib/auth";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Sign in · Cantila" };
+export const metadata = buildPageMetadata({
+  title: "Sign in to Cantila",
+  description: "Sign in to the Cantila Console — ship anything, live, from one chat.",
+  path: "/login",
+  absolute: true,
+  noindex: true,
+});
 
 async function signInWithPassword(formData: FormData) {
   "use server";

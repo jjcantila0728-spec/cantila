@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { DOCS_NAV } from "@/data/docs-nav";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Docs · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Docs",
   description:
     "Cantila docs — getting started, Chat Deploy, the CLI, the MCP server, auto-wired services, and billing.",
-};
+  path: "/docs",
+});
 
 export default function DocsHome() {
   return (

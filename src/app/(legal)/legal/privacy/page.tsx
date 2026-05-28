@@ -1,10 +1,12 @@
 import LegalPage from "@/components/marketing/LegalPage";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Privacy policy · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Privacy policy",
   description:
     "What Cantila collects, why, where it lives, and what your rights are.",
-};
+  path: "/legal/privacy",
+});
 
 export default function PrivacyPage() {
   return (

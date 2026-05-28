@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Auto-wired services · docs",
-  description: "The DB, mailbox, and SMS number every Cantila project ships with.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Auto-wired services",
+  description: "The Postgres database, mailbox, and SMS number every Cantila project ships with — wired into the env before the first build runs.",
+  path: "/docs/auto-wired",
+  type: "article",
+});
 
 # Auto-wired services
 

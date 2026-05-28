@@ -1,12 +1,14 @@
 import { Mail, MessageSquare, BookOpen, Wrench } from "lucide-react";
 import HeroDarkBand from "@/components/marketing/HeroDarkBand";
 import { Section } from "@/components/marketing/ui";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Contact · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Contact",
   description:
     "Talk to JJ — founder@cantila.app, on Discord, on the docs site, or through the Console.",
-};
+  path: "/contact",
+});
 
 const CHANNELS = [
   {

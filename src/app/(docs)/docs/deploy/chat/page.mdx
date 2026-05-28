@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Cantila Deploy (chat) · docs",
-  description: "Drop files in. Cantila detects the stack. You get a URL.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Cantila Deploy (chat)",
+  description: "Drop files in, Cantila detects the stack, you get a URL — the conversational front door to deploys.",
+  path: "/docs/deploy/chat",
+  type: "article",
+});
 
 # Cantila Deploy (chat)
 

@@ -5,12 +5,14 @@ import {
   SecondaryCta,
   Section,
 } from "@/components/marketing/ui";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "About · Cantila",
+export const metadata = buildPageMetadata({
+  title: "About Cantila",
   description:
     "Cantila is a one-person company building the deploy layer the AI build wave needs — VPS-powered, bundled services, one chat.",
-};
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

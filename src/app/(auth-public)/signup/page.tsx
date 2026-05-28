@@ -11,8 +11,15 @@ import Link from "next/link";
 import { ArrowRight, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
 import { SESSION_COOKIE, establishSession, safeFrom } from "@/lib/auth";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = { title: "Create an account · Cantila" };
+export const metadata = buildPageMetadata({
+  title: "Create your Cantila account",
+  description:
+    "Free to start. Ship your first project on Cantila from one chat. No card required for the Hobby plan.",
+  path: "/signup",
+  absolute: true,
+});
 
 async function signUp(formData: FormData) {
   "use server";

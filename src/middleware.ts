@@ -134,12 +134,28 @@ function gate(req: NextRequest): NextResponse {
   return NextResponse.redirect(`https://${PUBLIC_HOST}/login${from}`);
 }
 
+/** Tag the forwarded request with `x-pathname` so server components
+ *  (e.g. the docs layout's Article JSON-LD injector) can read the
+ *  current path via `headers()`. This MUTATES the request headers
+ *  passed downstream; response headers wouldn't reach the renderer. */
+function passWithPath(req: NextRequest, pathname: string): NextResponse {
+  const headers = new Headers(req.headers);
+  headers.set("x-pathname", pathname);
+  return NextResponse.next({ request: { headers } });
+}
+
 export function middleware(req: NextRequest) {
   const host = (req.headers.get("host") ?? "").toLowerCase();
   const { pathname, search } = req.nextUrl;
 
   // Local dev — skip host rerouting, only enforce the auth gate.
-  if (hostIsLocal(host)) return gate(req);
+  if (hostIsLocal(host)) {
+    // gate() may return a redirect; if it returns NextResponse.next() we
+    // replace it with a path-tagged variant.
+    const gated = gate(req);
+    if (gated.headers.get("location")) return gated;
+    return passWithPath(req, pathname);
+  }
 
   // www → apex (permanent)
   if (host === WWW_HOST) {
@@ -160,7 +176,9 @@ export function middleware(req: NextRequest) {
         302,
       );
     }
-    return gate(req);
+    const gated = gate(req);
+    if (gated.headers.get("location")) return gated;
+    return passWithPath(req, pathname);
   }
 
   if (host === CONSOLE_HOST) {
@@ -186,11 +204,15 @@ export function middleware(req: NextRequest) {
         302,
       );
     }
-    return gate(req);
+    const gated = gate(req);
+    if (gated.headers.get("location")) return gated;
+    return passWithPath(req, pathname);
   }
 
   // Any other host (preview URLs, IP access) — fall through to the gate.
-  return gate(req);
+  const gated = gate(req);
+  if (gated.headers.get("location")) return gated;
+  return passWithPath(req, pathname);
 }
 
 export const config = {

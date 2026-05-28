@@ -26,12 +26,24 @@ export default function Topbar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Lock body scroll while the mobile nav drawer is open. The drawer
+  // is `fixed inset-0` so background scroll-through is otherwise easy
+  // to trigger on touch devices.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-bg/80 px-4 backdrop-blur-md sm:px-6">
       {/* mobile menu */}
       <button
         onClick={() => setOpen(true)}
-        className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-ink-dim hover:text-ink lg:hidden"
+        className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-ink-dim hover:text-ink lg:hidden"
         aria-label="Open menu"
       >
         <Menu className="h-4 w-4" />
@@ -85,7 +97,7 @@ export default function Topbar() {
               </div>
               <button
                 onClick={() => setOpen(false)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-ink-dim hover:text-ink"
+                className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-dim hover:text-ink"
                 aria-label="Close menu"
               >
                 <X className="h-4 w-4" />
@@ -109,7 +121,7 @@ export default function Topbar() {
                         href={item.href}
                         onClick={() => setOpen(false)}
                         className={cx(
-                          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
+                          "flex min-h-11 items-center gap-2.5 rounded-lg px-3 py-2 text-sm",
                           active
                             ? "bg-surface-3 font-medium text-ink"
                             : "text-ink-dim hover:text-ink",

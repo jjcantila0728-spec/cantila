@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Getting started · Cantila docs",
-  description: "Sign up, ship your first project from chat, find it live.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Getting started",
+  description: "Sign up, ship your first project from chat, find it live — Cantila in five steps.",
+  path: "/docs/getting-started",
+  type: "article",
+});
 
 # Getting started
 

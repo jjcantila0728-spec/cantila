@@ -32,13 +32,17 @@ import {
   Section,
 } from "@/components/marketing/ui";
 import PricingTable from "@/components/marketing/PricingTable";
+import JsonLd from "@/components/JsonLd";
 import { PRODUCTS, SITE_TAGLINE } from "@/lib/site-meta";
+import { buildPageMetadata, softwareApplicationJsonLd } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Cantila — ship anything, live, from one chat",
   description:
     "The VPS-powered hosting cloud where websites, apps, and AI agents ship from a single chat — with the domain, email, SMS, and database already wired in.",
-};
+  path: "/",
+  absolute: true,
+});
 
 const COMPETITIVE = [
   {
@@ -77,6 +81,7 @@ const TEMPLATES = [
 export default function LandingPage() {
   return (
     <>
+      <JsonLd payload={softwareApplicationJsonLd()} />
       <HeroDarkBand
         eyebrow="Cantila"
         title={

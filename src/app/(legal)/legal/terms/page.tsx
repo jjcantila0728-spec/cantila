@@ -1,9 +1,11 @@
 import LegalPage from "@/components/marketing/LegalPage";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Terms of service · Cantila",
-  description: "The terms you agree to when you use Cantila.",
-};
+export const metadata = buildPageMetadata({
+  title: "Terms of service",
+  description: "The terms you agree to when you use Cantila — plain-language, no buried surprises.",
+  path: "/legal/terms",
+});
 
 export default function TermsPage() {
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, ArrowRight } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
 import { PRODUCTS } from "@/lib/site-meta";
@@ -12,6 +12,17 @@ import { PRODUCTS } from "@/lib/site-meta";
 export default function MarketingHeader() {
   const [open, setOpen] = useState(false);
   const [productsOpen, setProductsOpen] = useState(false);
+
+  // Lock body scroll while the mobile drawer is open so the underlying
+  // page doesn't scroll behind the sheet on touch devices.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-light-border/60 bg-light-bg/85 backdrop-blur">
@@ -57,7 +68,7 @@ export default function MarketingHeader() {
         <button
           type="button"
           aria-label="Open menu"
-          className="rounded-lg p-2 text-light-ink lg:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-light-ink lg:hidden"
           onClick={() => setOpen(true)}
         >
           <Menu className="h-5 w-5" />
@@ -65,7 +76,7 @@ export default function MarketingHeader() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 bg-light-bg lg:hidden">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-light-bg lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
             <Link
               href="/"
@@ -80,13 +91,13 @@ export default function MarketingHeader() {
             <button
               type="button"
               aria-label="Close menu"
-              className="rounded-lg p-2 text-light-ink"
+              className="flex h-11 w-11 items-center justify-center rounded-lg text-light-ink"
               onClick={() => setOpen(false)}
             >
               <X className="h-5 w-5" />
             </button>
           </div>
-          <nav className="space-y-1 px-4 py-3">
+          <nav className="space-y-1 px-4 pb-8 pt-3">
             <MobileGroup label="Products">
               {PRODUCTS.map((p) => (
                 <MobileLink
@@ -235,7 +246,7 @@ function MobileLink({
     <Link
       href={href}
       onClick={onClick}
-      className="block rounded-lg px-3 py-2.5 text-sm font-medium text-light-ink hover:bg-light-surface"
+      className="flex min-h-11 items-center rounded-lg px-3 py-2.5 text-sm font-medium text-light-ink hover:bg-light-surface"
     >
       {children}
     </Link>

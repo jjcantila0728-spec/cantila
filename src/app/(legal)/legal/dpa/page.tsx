@@ -1,9 +1,11 @@
 import LegalPage from "@/components/marketing/LegalPage";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Data processing agreement · Cantila",
+export const metadata = buildPageMetadata({
+  title: "Data processing agreement",
   description: "The DPA between Cantila and customers under GDPR / UK GDPR.",
-};
+  path: "/legal/dpa",
+});
 
 export default function DpaPage() {
   return (

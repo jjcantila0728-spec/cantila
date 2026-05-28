@@ -1,9 +1,11 @@
 import LegalPage from "@/components/marketing/LegalPage";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Subprocessors · Cantila",
-  description: "The third parties Cantila uses to operate the service.",
-};
+export const metadata = buildPageMetadata({
+  title: "Subprocessors",
+  description: "The third parties Cantila uses to operate the service — Hetzner, Stripe, Cloudflare, OpenSRS, and the Phase 2/3 carriers.",
+  path: "/legal/subprocessors",
+});
 
 type Row = {
   name: string;

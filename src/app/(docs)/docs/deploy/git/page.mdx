@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Push-to-deploy (git) · docs",
-  description: "Connect a repo so every push builds and every PR gets a preview URL.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Push-to-deploy (git)",
+  description: "Connect a repo so every push to main builds and every PR gets a preview URL on Cantila.",
+  path: "/docs/deploy/git",
+  type: "article",
+});
 
 # Push-to-deploy (git)
 

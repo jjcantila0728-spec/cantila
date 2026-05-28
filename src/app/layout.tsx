@@ -1,14 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-
-const PUBLIC_HOST = process.env.CANTILA_PUBLIC_HOST ?? "cantila.app";
-const SITE_URL =
-  process.env.NODE_ENV === "production"
-    ? `https://${PUBLIC_HOST}`
-    : "http://localhost:3000";
+import JsonLd from "@/components/JsonLd";
+import { orgJsonLd, websiteJsonLd, SITE_ORIGIN } from "@/lib/seo";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: new URL(SITE_ORIGIN),
   title: {
     default: "Cantila — ship anything, live, from one chat",
     template: "%s · Cantila",
@@ -25,13 +21,16 @@ export const metadata: Metadata = {
     title: "Cantila",
     statusBarStyle: "black-translucent",
   },
+  alternates: {
+    canonical: SITE_ORIGIN,
+  },
   openGraph: {
     title: "Cantila — ship anything, live",
     description:
       "The VPS-powered hosting cloud — apps, sites, and AI agents on real servers, with domain, email, SMS, and database already wired in.",
     siteName: "Cantila",
     type: "website",
-    url: SITE_URL,
+    url: SITE_ORIGIN,
     images: [
       {
         url: "/brand/social/og-default.svg",
@@ -48,10 +47,16 @@ export const metadata: Metadata = {
       "Ship anything, live — from one chat. The VPS-powered hosting cloud with domain, email, SMS, and database already wired in.",
     images: ["/brand/social/og-default.svg"],
   },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0b0c0e",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({
@@ -61,7 +66,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        {/* Preconnect cuts ~80-150ms off cold font load. Fontshare and
+            Google Fonts are still imported via @import in globals.css
+            (P1.6 in the audit) — until that migration lands, preconnect
+            is the cheapest perf win. */}
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+      </head>
+      <body>
+        <JsonLd payload={[orgJsonLd(), websiteJsonLd()]} />
+        {children}
+      </body>
     </html>
   );
 }

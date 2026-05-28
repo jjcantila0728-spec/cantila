@@ -1,9 +1,11 @@
 import LegalPage from "@/components/marketing/LegalPage";
+import { buildPageMetadata } from "@/lib/seo";
 
-export const metadata = {
-  title: "Acceptable use policy · Cantila",
-  description: "What you can and cannot do with Cantila.",
-};
+export const metadata = buildPageMetadata({
+  title: "Acceptable use policy",
+  description: "What you can and cannot do with Cantila — the bright lines that get an account suspended or terminated.",
+  path: "/legal/aup",
+});
 
 export default function AupPage() {
   return (

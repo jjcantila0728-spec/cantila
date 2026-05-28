@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "The Cantila CLI · docs",
-  description: "Install `cantila`, log in, ship.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "The Cantila CLI",
+  description: "Install the cantila binary, log in, and ship — the zero-dep Node 20 wrapper over the public Cantila API.",
+  path: "/docs/cli",
+  type: "article",
+});
 
 # The Cantila CLI
 

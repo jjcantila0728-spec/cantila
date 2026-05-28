@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Cantila MCP server · docs",
-  description: "Add the Cantila MCP server to Claude in 30 seconds.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Cantila MCP server",
+  description: "Add the Cantila MCP server to Claude in 30 seconds — every Claude surface gets cantila_deploy, cantila_provision_db, and 23 more tools.",
+  path: "/docs/mcp",
+  type: "article",
+});
 
 # Cantila MCP server
 

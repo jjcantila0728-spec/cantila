@@ -1,7 +1,10 @@
-export const metadata = {
-  title: "Plans, billing, invoices · docs",
-  description: "Stripe-backed plans, metered overage, the Billing Portal.",
-};
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Plans, billing, invoices",
+  description: "Stripe-backed plans, metered overage, and the Billing Portal — how Cantila charges, refunds, and dunns end-to-end.",
+  path: "/docs/billing",
+  type: "article",
+});
 
 # Plans, billing, invoices
 

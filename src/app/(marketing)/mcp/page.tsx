@@ -15,12 +15,16 @@ import {
   SecondaryCta,
   Section,
 } from "@/components/marketing/ui";
+import JsonLd from "@/components/JsonLd";
+import { buildPageMetadata, breadcrumbJsonLd } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = buildPageMetadata({
   title: "Cantila MCP server — ship from Claude",
   description:
-    "Add the Cantila MCP server once. From then on, any app built inside Claude can deploy to Cantila — `cantila_deploy`, `cantila_provision_db`, `cantila_add_domain`, and 22 more tools.",
-};
+    "Add the Cantila MCP server once. Any app built inside Claude can then deploy to Cantila — cantila_deploy, cantila_provision_db, cantila_add_domain, and 22 more tools.",
+  path: "/mcp",
+  absolute: true,
+});
 
 const TOOLS = [
   { name: "cantila_deploy", what: "Ship a project (files or repo) and return a live URL." },
@@ -40,6 +44,12 @@ const TOOLS = [
 export default function McpPage() {
   return (
     <>
+      <JsonLd
+        payload={breadcrumbJsonLd([
+          { name: "Cantila", path: "/" },
+          { name: "Cantila MCP", path: "/mcp" },
+        ])}
+      />
       <HeroDarkBand
         eyebrow="Cantila MCP server"
         title={
@@ -120,15 +130,15 @@ Content-Type: application/json`}
         description="Naming follows cantila_<verb>_<noun>. Adding tools follows the same pattern — no surprises in the prompt."
         bg="paper"
       >
-        <div className="overflow-hidden rounded-2xl border border-light-border bg-light-bg">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-light-border bg-light-bg">
+          <table className="w-full min-w-[560px] text-sm">
             <tbody>
               {TOOLS.map((t, i) => (
                 <tr
                   key={t.name}
                   className={i % 2 === 0 ? "" : "bg-light-surface/40"}
                 >
-                  <td className="w-1/3 px-5 py-3 font-mono text-ember-on-light">
+                  <td className="w-1/3 whitespace-nowrap px-5 py-3 font-mono text-ember-on-light">
                     {t.name}
                   </td>
                   <td className="px-5 py-3 text-light-ink-dim">{t.what}</td>
