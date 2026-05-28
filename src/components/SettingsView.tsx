@@ -158,6 +158,45 @@ export default function SettingsView() {
   const [brandError, setBrandError] = useState<string | null>(null);
   const [brandSavedAt, setBrandSavedAt] = useState<number | null>(null);
 
+  // Self-service password change (plan §5.4). Modal-driven; the control
+  // plane verifies the current password before writing the new hash.
+  const [pwModal, setPwModal] = useState(false);
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSavedAt, setPwSavedAt] = useState<number | null>(null);
+
+  async function submitChangePassword() {
+    if (pwBusy) return;
+    setPwError(null);
+    if (pwNew.length < 8) {
+      setPwError("New password must be at least 8 characters.");
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      setPwError("New password and confirmation don't match.");
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await api.changeMyPassword({
+        currentPassword: pwCurrent,
+        newPassword: pwNew,
+      });
+      setPwCurrent("");
+      setPwNew("");
+      setPwConfirm("");
+      setPwModal(false);
+      setPwSavedAt(Date.now());
+    } catch (err) {
+      setPwError(err instanceof Error ? err.message : "change failed");
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
   // Seed branding inputs from the loaded account so the form reflects
   // current values whenever the account changes (org switch, refresh).
   useEffect(() => {
@@ -984,6 +1023,26 @@ export default function SettingsView() {
         <h2 className="kv mb-3 text-ink-dim">Security</h2>
         <div className="panel divide-y divide-border-soft p-0">
           <div className="flex items-center gap-3 px-5 py-4">
+            <KeyRound className="h-4 w-4 text-ink-faint" />
+            <div className="flex-1">
+              <div className="text-sm text-ink">Password</div>
+              <div className="text-2xs text-ink-faint">
+                {pwSavedAt
+                  ? "Updated · keep your new password somewhere safe"
+                  : "Used for email + password sign-in at cantila.app/login"}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setPwError(null);
+                setPwModal(true);
+              }}
+              className="text-2xs font-medium text-ember hover:underline"
+            >
+              Change
+            </button>
+          </div>
+          <div className="flex items-center gap-3 px-5 py-4">
             <ShieldCheck className="h-4 w-4 text-live" />
             <div className="flex-1">
               <div className="text-sm text-ink">Two-factor authentication</div>
@@ -1247,6 +1306,84 @@ export default function SettingsView() {
               .
             </p>
           </>
+        )}
+      </Modal>
+
+      {/* change password modal (plan §5.4) */}
+      <Modal
+        open={pwModal}
+        onClose={() => {
+          setPwModal(false);
+          setPwError(null);
+        }}
+        title="Change password"
+        description="The control plane verifies your current password before storing the new hash."
+        footer={
+          <>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setPwModal(false);
+                setPwError(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={submitChangePassword}
+              disabled={
+                pwBusy ||
+                pwCurrent.length === 0 ||
+                pwNew.length < 8 ||
+                pwConfirm.length === 0
+              }
+            >
+              {pwBusy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <KeyRound className="h-4 w-4" strokeWidth={2.4} />
+              )}
+              Update password
+            </Button>
+          </>
+        }
+      >
+        <Field label="Current password">
+          <input
+            type="password"
+            autoComplete="current-password"
+            value={pwCurrent}
+            onChange={(e) => setPwCurrent(e.target.value)}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="New password">
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={pwNew}
+            onChange={(e) => setPwNew(e.target.value)}
+            placeholder="At least 8 characters"
+            className={inputClass}
+          />
+        </Field>
+        <Field label="Confirm new password">
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={pwConfirm}
+            onChange={(e) => setPwConfirm(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void submitChangePassword();
+            }}
+            className={inputClass}
+          />
+        </Field>
+        {pwError && (
+          <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
+            {pwError}
+          </p>
         )}
       </Modal>
     </div>

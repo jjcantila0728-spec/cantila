@@ -428,6 +428,18 @@ export const api = {
 
   getAccountMe: () => request<ApiAccount>("/accounts/me"),
 
+  /** Self-service password change for the signed-in user (plan §5.4).
+   *  The control plane verifies the current password before writing the
+   *  new hash; on failure the response body is `{ error: string }`. */
+  changeMyPassword: (input: {
+    currentPassword: string;
+    newPassword: string;
+  }) =>
+    request<{ userId: string }>("/account/me/change-password", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
   /** Plan §5.5 — white-label per-account branding. Patches the
    *  currently-resolved account (act-as honoured at the proxy /
    *  control plane). Pass empty string to clear a field; omit it
