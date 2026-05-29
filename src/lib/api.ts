@@ -156,7 +156,6 @@ export interface ApiDeployOutcome {
   provisioned: {
     databaseCreated: boolean;
     mailboxCreated: boolean;
-    phoneNumberCreated: boolean;
     injectedEnv: string[];
   };
 }
@@ -906,6 +905,30 @@ export const api = {
     request<ApiCallRouting>(
       `/projects/${encodeURIComponent(projectId)}/voice/routing`,
       { method: "PUT", body: JSON.stringify(input) },
+    ),
+
+  /** Activate SMS on a project (opt-in). Provisions a real carrier number
+   *  and wires it into the project. `e164` optional — omit to take the
+   *  first available number in `country`. */
+  activateSms: (
+    projectId: string,
+    input: {
+      country: string;
+      numberType?: string;
+      capabilities?: string[];
+      e164?: string;
+    },
+  ) =>
+    request<ApiPhoneNumber>(
+      `/projects/${encodeURIComponent(projectId)}/sms/activate`,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
+  /** Deactivate SMS on a project — releases the number + stops billing. */
+  deactivateSms: (projectId: string) =>
+    request<{ ok: true }>(
+      `/projects/${encodeURIComponent(projectId)}/sms/deactivate`,
+      { method: "POST", body: JSON.stringify({}) },
     ),
 
   /* ----- number marketplace (plan §4.5) ----- */

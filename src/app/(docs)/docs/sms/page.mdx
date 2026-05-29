@@ -26,7 +26,29 @@ registration.
   return shaped responses, but nothing reaches a carrier yet.
 </Note>
 
+## Activate SMS (opt-in)
+
+SMS is **not** auto-wired. Activate it on a project — from **Console →
+project → SMS** or via the API — to provision a real number (billed
+monthly) and inject `CANTILA_SMS_NUMBER` / `CANTILA_SMS_API_KEY` into the
+project on its next deploy. Omit `e164` to take the first available number
+in the country.
+
+```bash
+# Activate — provisions a number and wires it in
+curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/activate \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "country": "US", "numberType": "local" }'
+
+# Deactivate — releases the number and stops billing
+curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/deactivate \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
 ## Outbound SMS
+
+Once SMS is activated, send through the project's number:
 
 ```bash
 curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/send \
@@ -36,7 +58,7 @@ curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/send \
 ```
 
 Supports bulk, scheduled sends, and templates. The project's number is
-auto-wired as `SMS_FROM` with `SMS_API_KEY`.
+wired in as `CANTILA_SMS_NUMBER` with `CANTILA_SMS_API_KEY`.
 
 ## OTP / 2FA engine
 
@@ -98,6 +120,8 @@ Carrier registration for application-to-person messaging lives under
 
 | Method | Path                                | Status            | Notes                          |
 | ------ | ----------------------------------- | ----------------- | ------------------------------ |
+| `POST` | `/v1/projects/:id/sms/activate`     | Live              | Opt-in — provision a number    |
+| `POST` | `/v1/projects/:id/sms/deactivate`   | Live              | Release the number, stop bill  |
 | `POST` | `/v1/projects/:id/sms/send`         | Stub (phase 3)    | Outbound SMS — lands first     |
 | `POST` | `/v1/projects/:id/sms/otp/request`  | Stub (phase 3)    | OTP request                    |
 | `POST` | `/v1/projects/:id/sms/otp/verify`   | Stub (phase 3)    | OTP verify                     |

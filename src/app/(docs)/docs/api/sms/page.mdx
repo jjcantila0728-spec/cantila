@@ -19,6 +19,36 @@ All endpoints require auth.
 
 ## Project SMS
 
+### POST /v1/projects/:id/sms/activate
+
+Activate SMS on a project (opt-in). Provisions a real number, bills it
+monthly, records it as the project's number, and injects
+`CANTILA_SMS_NUMBER` / `CANTILA_SMS_API_KEY`. Idempotent — returns the
+existing number if SMS is already active.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `country` | string | ISO-3166 country code, e.g. `US` |
+| `numberType` | string | `local` \| `toll_free` \| `mobile` \| `short_code` (default `local`) |
+| `capabilities` | string[] | Subset of `sms` / `mms` / `voice` (default all) |
+| `e164` | string | Optional — a specific number; omit to take the first available |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/sms/activate \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "country": "US", "numberType": "local" }'
+```
+
+### POST /v1/projects/:id/sms/deactivate
+
+Deactivate SMS — releases the carrier number (stops the monthly charge),
+removes the project number, and strips the injected env. Idempotent.
+
+Requires `deploy`.
+
 ### POST /v1/projects/:id/sms/send
 
 Send an SMS from a project.

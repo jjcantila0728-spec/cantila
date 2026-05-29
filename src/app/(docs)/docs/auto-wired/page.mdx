@@ -1,7 +1,7 @@
 import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
   title: "Platform services",
-  description: "The database, storage, mailbox, and number every Cantila project ships with — wired into the env before the first build runs.",
+  description: "The database, storage, and mailbox every Cantila project ships with — wired into the env before the first build runs. SMS is opt-in.",
   path: "/docs/auto-wired",
   type: "article",
 });
@@ -9,8 +9,10 @@ export const metadata = buildPageMetadata({
 # Platform services
 
 Every project deployed on Cantila gets its own dedicated database, object
-storage, an email service, and an SMS number — provisioned together with
-the project and wired into the environment before the first build runs.
+storage, and an email service — provisioned together with the project and
+wired into the environment before the first build runs. **SMS is opt-in:**
+a project gets no number until you activate SMS on it (see
+[SMS, Voice & Numbers](/docs/sms)).
 
 This page is the overview. Each service has its own page with the API
 surface and current phase status:
@@ -31,13 +33,13 @@ surface and current phase status:
 | Postgres          | `DATABASE_URL`                                          | Live      | Real, running on Hetzner       |
 | Object storage    | `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_KEY`     | Live      | S3-compatible, per-project     |
 | Mailbox + SMTP    | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`      | Phase 2   | Real creds, stub MTA today     |
-| SMS number        | `SMS_FROM`, `SMS_API_KEY`                               | Phase 3   | Stub adapter today             |
+| SMS number        | `CANTILA_SMS_NUMBER`, `CANTILA_SMS_API_KEY`             | Opt-in    | Activate per project           |
 | Cantila API key   | `CANTILA_API_KEY` (scoped to the project)               | Live      | Used by the runtime SDK        |
 
 <Callout tone="warn" title="What works today">
   - **Live:** Postgres (`DATABASE_URL`) and S3-compatible storage are real and running.
   - **Phase 2:** Mailbox + per-project SMTP credentials are real and auto-wired, but no real bytes leave the MTA yet — the send path is a stub. See [Mail](/docs/mail).
-  - **Phase 3:** The SMS number is a stub adapter — outbound/inbound carrier delivery flips on as the phase ships. See [SMS](/docs/sms).
+  - **Opt-in:** SMS is **not** auto-wired. Activate it on a project to provision a real number (billed monthly) and inject `CANTILA_SMS_NUMBER` / `CANTILA_SMS_API_KEY`. See [SMS](/docs/sms).
 </Callout>
 
 `Phase 2` and `Phase 3` env vars exist today against the stub adapters —
@@ -54,13 +56,15 @@ When you create a project:
    project user and database are created; `DATABASE_URL` is generated.
 3. **Mailbox** is created at `m_<random>@cantila.app` (Phase 2 — this
    becomes `<project>@<your-domain>` once Mail goes live).
-4. **SMS number** is leased from the inventory (Phase 3 — until then a
-   placeholder routes inbound to the project webhook).
-5. **Cantila API key** scoped to the project is minted.
-6. **Env injection.** All of the above are written to the project's
+4. **Cantila API key** scoped to the project is minted.
+5. **Env injection.** All of the above are written to the project's
    secrets, marked `cantila-managed: true`, and locked from user
    overwrite.
-7. **First build** runs with the env in place.
+6. **First build** runs with the env in place.
+
+_SMS is not provisioned here — it's opt-in. When you activate SMS on the
+project, a real number is leased and `CANTILA_SMS_NUMBER` /
+`CANTILA_SMS_API_KEY` are injected then._
 
 ## Sleeping when idle
 
@@ -83,7 +87,7 @@ project       deleted
 db            dropped
 storage       bucket emptied + dropped
 mailbox       deleted (Phase 2)
-sms number    released (Phase 3)
+sms number    released (only if SMS was activated)
 domain        retained (your domain, your call)
 ```
 

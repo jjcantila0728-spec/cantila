@@ -50,6 +50,7 @@ import {
   type ApiTroubleshootResult,
   type ApiDeployment,
   type ApiBackup,
+  type ApiCatalogNumber,
 } from "../lib/api";
 
 const TABS = [
@@ -79,6 +80,8 @@ export default function LiveProjectView({ projectId }: { projectId: string }) {
   const [gitModal, setGitModal] = useState(false);
   const [pushing, setPushing] = useState(false);
   const [buyModal, setBuyModal] = useState(false);
+  const [smsModal, setSmsModal] = useState(false);
+  const [smsBusy, setSmsBusy] = useState(false);
   const [troubleshooting, setTroubleshooting] = useState<string | null>(null);
   const [troubleshootResult, setTroubleshootResult] =
     useState<ApiTroubleshootResult | null>(null);
@@ -160,6 +163,27 @@ export default function LiveProjectView({ projectId }: { projectId: string }) {
     } finally {
       void load();
       window.setTimeout(() => setToast(null), 3000);
+    }
+  }
+
+  async function deactivateSms() {
+    if (
+      !window.confirm(
+        "Deactivate SMS? This releases the number, stops its monthly charge, and removes CANTILA_SMS_* from the project.",
+      )
+    ) {
+      return;
+    }
+    setSmsBusy(true);
+    try {
+      await api.deactivateSms(projectId);
+      setToast("SMS deactivated — number released.");
+    } catch (err) {
+      setToast(err instanceof Error ? err.message : "deactivate failed");
+    } finally {
+      setSmsBusy(false);
+      void load();
+      window.setTimeout(() => setToast(null), 3500);
     }
   }
 
@@ -383,9 +407,27 @@ export default function LiveProjectView({ projectId }: { projectId: string }) {
                     services.phoneNumber.e164,
                     `API key: ${services.phoneNumber.apiKey}`,
                   ]
-                : ["Not provisioned"]
+                : ["Not activated — opt in to send SMS."]
             }
             status={services.phoneNumber?.status}
+            action={
+              services.phoneNumber ? (
+                <button
+                  onClick={() => void deactivateSms()}
+                  disabled={smsBusy}
+                  className="text-2xs font-medium text-down hover:underline disabled:opacity-50"
+                >
+                  Deactivate
+                </button>
+              ) : (
+                <button
+                  onClick={() => setSmsModal(true)}
+                  className="text-2xs font-medium text-ember hover:underline"
+                >
+                  Activate SMS
+                </button>
+              )
+            }
           />
           <ServiceCard
             icon={Cpu}
@@ -786,9 +828,27 @@ export default function LiveProjectView({ projectId }: { projectId: string }) {
                     services.phoneNumber.e164,
                     `Region ${services.phoneNumber.region}`,
                   ]
-                : ["Not provisioned"]
+                : ["Not activated — opt in to provision a number."]
             }
             status={services.phoneNumber?.status}
+            action={
+              services.phoneNumber ? (
+                <button
+                  onClick={() => void deactivateSms()}
+                  disabled={smsBusy}
+                  className="text-2xs font-medium text-down hover:underline disabled:opacity-50"
+                >
+                  Deactivate
+                </button>
+              ) : (
+                <button
+                  onClick={() => setSmsModal(true)}
+                  className="text-2xs font-medium text-ember hover:underline"
+                >
+                  Activate SMS
+                </button>
+              )
+            }
           />
         </div>
       )}
@@ -832,6 +892,19 @@ export default function LiveProjectView({ projectId }: { projectId: string }) {
           void load();
           setToast(`Registered ${hostname} — attached to this project.`);
           window.setTimeout(() => setToast(null), 4500);
+        }}
+      />
+
+      <ActivateSmsModal
+        open={smsModal}
+        onClose={() => setSmsModal(false)}
+        projectId={projectId}
+        defaultCountry={regionToCountry(project.region)}
+        onActivated={(e164) => {
+          setSmsModal(false);
+          void load();
+          setToast(`SMS activated — ${e164}.`);
+          window.setTimeout(() => setToast(null), 4000);
         }}
       />
 
@@ -965,6 +1038,21 @@ function formatRelative(iso: string): string {
   if (h < 24) return `${h}h ago`;
   const d = Math.round(h / 24);
   return `${d}d ago`;
+}
+
+/** A sensible default SMS country for a project's deploy region. The user
+ *  can still pick any country in the activation modal. */
+function regionToCountry(region: string): string {
+  switch (region) {
+    case "fsn1":
+      return "DE";
+    case "hel1":
+      return "FI";
+    case "ash":
+      return "US";
+    default:
+      return "US";
+  }
 }
 
 /* ---------- modals ---------- */
@@ -1452,6 +1540,155 @@ function BuyDomainModal({
               ) : (
                 <span className="text-2xs text-ink-faint">taken</span>
               )}
+            </div>
+          ))}
+        </div>
+      )}
+      {error && <p className="text-2xs text-down">{error}</p>}
+    </Modal>
+  );
+}
+
+const SMS_COUNTRIES = [
+  { code: "US", label: "United States" },
+  { code: "GB", label: "United Kingdom" },
+  { code: "DE", label: "Germany" },
+  { code: "FI", label: "Finland" },
+  { code: "NL", label: "Netherlands" },
+  { code: "PH", label: "Philippines" },
+  { code: "AU", label: "Australia" },
+  { code: "CA", label: "Canada" },
+];
+
+function ActivateSmsModal({
+  open,
+  onClose,
+  projectId,
+  defaultCountry,
+  onActivated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  projectId: string;
+  defaultCountry: string;
+  onActivated: (e164: string) => void;
+}) {
+  const [country, setCountry] = useState(defaultCountry);
+  const [results, setResults] = useState<ApiCatalogNumber[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [activating, setActivating] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      setCountry(defaultCountry);
+      setResults([]);
+      setError(null);
+    }
+  }, [open, defaultCountry]);
+
+  async function runSearch() {
+    setSearching(true);
+    setError(null);
+    try {
+      const { numbers } = await api.searchNumberCatalog({
+        country,
+        type: "local",
+      });
+      setResults(numbers);
+      if (numbers.length === 0) {
+        setError("No numbers available for that country.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "search failed");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function activate(e164: string) {
+    setActivating(e164);
+    setError(null);
+    try {
+      const phone = await api.activateSms(projectId, {
+        country,
+        numberType: "local",
+        e164,
+      });
+      onActivated(phone.e164);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "activation failed");
+    } finally {
+      setActivating(null);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Activate SMS for this project"
+      description="Provisions a real Cantila SMS number, bills it monthly, and wires CANTILA_SMS_NUMBER / CANTILA_SMS_API_KEY into the project on its next deploy."
+      footer={
+        <Button variant="ghost" onClick={onClose}>
+          Close
+        </Button>
+      }
+    >
+      <div className="flex gap-2">
+        <select
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+          className="h-9 flex-1 rounded border border-border bg-bg px-2 text-xs text-ink"
+        >
+          {SMS_COUNTRIES.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.label} ({c.code})
+            </option>
+          ))}
+        </select>
+        <Button variant="primary" onClick={runSearch} disabled={searching}>
+          {searching ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Search className="h-3.5 w-3.5" strokeWidth={2.4} />
+          )}
+          Find numbers
+        </Button>
+      </div>
+
+      {results.length > 0 && (
+        <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+          {results.map((n) => (
+            <div
+              key={n.e164}
+              className="flex items-center gap-2 rounded-lg border border-border-soft bg-surface-2 px-3 py-2"
+            >
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-ember" />
+              <code className="flex-1 font-mono text-xs text-ink">
+                {n.e164}
+              </code>
+              <span className="font-mono text-2xs text-ink-dim">
+                ${(n.monthlyPriceCents / 100).toFixed(2)}/mo
+                {n.setupPriceCents > 0 && (
+                  <span className="text-ink-faint">
+                    {" "}· ${(n.setupPriceCents / 100).toFixed(2)} setup
+                  </span>
+                )}
+              </span>
+              <Button
+                size="sm"
+                variant="primary"
+                disabled={activating !== null}
+                onClick={() => activate(n.e164)}
+              >
+                {activating === n.e164 ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-3 w-3" strokeWidth={2.4} />
+                )}
+                Activate
+              </Button>
             </div>
           ))}
         </div>
