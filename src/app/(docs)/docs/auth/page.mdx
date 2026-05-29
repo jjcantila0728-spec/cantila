@@ -1,0 +1,147 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Authentication: sign-in, sessions, API keys",
+  description: "Email + password sessions, password reset, email verification, 2FA, optional SSO, and API keys for programmatic access to Cantila.",
+  path: "/docs/auth",
+  type: "article",
+});
+
+# Authentication
+
+Cantila authenticates people with email + password sessions in the
+Console, and programs with API keys. SSO and two-factor add extra layers
+when you want them.
+
+## Signing in
+
+Register an account, then log in. A successful login sets an httpOnly
+session cookie named `cantila_session` that the Console sends on every
+request.
+
+```bash
+# Register
+curl -X POST https://api.cantila.app/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "you@example.com", "password": "<password>" }'
+
+# Log in
+curl -X POST https://api.cantila.app/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "you@example.com", "password": "<password>" }'
+```
+
+Inspect the current session, or log out to clear the cookie:
+
+```bash
+curl https://api.cantila.app/v1/auth/session
+curl -X POST https://api.cantila.app/v1/auth/logout
+```
+
+<Note>
+  The session cookie is httpOnly and can't be read by JavaScript. For
+  scripts and CI, use an API key instead of a session.
+</Note>
+
+## Password reset
+
+Request a reset link by email, then set a new password with the token
+from that link.
+
+```bash
+# Request a reset email
+curl -X POST https://api.cantila.app/v1/auth/forgot \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "you@example.com" }'
+
+# Set a new password
+curl -X POST https://api.cantila.app/v1/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{ "token": "<token>", "password": "<new_password>" }'
+```
+
+To change your password while signed in:
+
+```bash
+curl -X POST https://api.cantila.app/v1/account/me/change-password \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "currentPassword": "<old>", "newPassword": "<new>" }'
+```
+
+## Email verification
+
+Confirm ownership of your email address. Request a verification email,
+then confirm with the token it contains.
+
+```bash
+# Send a verification email
+curl -X POST https://api.cantila.app/v1/auth/verify-email/request \
+  -H "Authorization: Bearer <api_key>"
+
+# Confirm with the token
+curl -X POST https://api.cantila.app/v1/auth/verify-email/confirm \
+  -H "Content-Type: application/json" \
+  -d '{ "token": "<token>" }'
+```
+
+Until you verify, the Console shows a reminder banner. Verifying clears
+it.
+
+## Two-factor authentication
+
+Enable 2FA from your account settings for a second factor on top of your
+password. Once enabled, logins require your one-time code in addition to
+the right credentials.
+
+## Single sign-on (SSO)
+
+Cantila supports SSO through a bundled OIDC provider.
+
+<Note>
+  When no external identity provider is configured, Cantila runs a
+  **StubSsoProvider** — a built-in stand-in that lets the SSO flow work
+  end-to-end without an external IdP. Wire a real OIDC provider to use
+  your own identity source.
+</Note>
+
+```bash
+# Discover whether SSO is available and how it's configured
+curl https://api.cantila.app/v1/auth/sso/info
+
+# Start the SSO flow (redirects to the provider)
+curl https://api.cantila.app/v1/auth/sso/start
+
+# Complete login after the provider redirects back
+curl -X POST https://api.cantila.app/v1/auth/sso/login \
+  -H "Content-Type: application/json" \
+  -d '{ "code": "<auth_code>" }'
+```
+
+## API keys
+
+Programmatic access uses API keys, not session cookies. Pass a key as a
+bearer token on every request:
+
+```bash
+curl https://api.cantila.app/v1/auth/session \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Create and manage keys from the Console, the `/v1/api-keys` endpoint, or
+the CLI:
+
+```bash
+# Create a key from the CLI
+cantila keys create
+
+# Or via the API
+curl -X POST https://api.cantila.app/v1/api-keys \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "ci-deploy" }'
+```
+
+<Callout tone="ember" title="Treat API keys like passwords.">
+  A key is shown once at creation — store it somewhere safe. If a key
+  leaks, revoke it from `/v1/api-keys` and create a fresh one.
+</Callout>

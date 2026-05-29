@@ -1,0 +1,110 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "CLI configuration",
+  description: "The ~/.cantila/config.json file, every environment-variable override, cantila config set, the control-plane URL, and the --as sub-account flag.",
+  path: "/docs/cli/config",
+  type: "article",
+});
+
+# CLI configuration
+
+The CLI resolves each setting in order: command flags, then environment
+variables, then `~/.cantila/config.json`, then built-in defaults. Nothing is
+written to disk until you run `cantila config set`.
+
+## The config file
+
+Settings live in `~/.cantila/config.json`:
+
+```json
+{
+  "controlPlaneUrl": "https://api.cantila.app",
+  "accountId": "acc_abc123",
+  "apiKey": "ck_live_...",
+  "actAs": "client-handle"
+}
+```
+
+| Key | Purpose |
+| --- | --- |
+| `controlPlaneUrl` | Base URL of the control plane the CLI talks to. |
+| `accountId` | The account new keys, projects and other resources are created under. |
+| `apiKey` | Your API key. Authenticates every request. |
+| `actAs` | A persisted sub-account handle the CLI impersonates on every call (white-label). Set it with `cantila accounts sub act-as`, not `config set`. |
+
+Inspect the current config — the file path, control-plane URL, account id, and
+whether a key is set (the key itself is never printed):
+
+```bash
+cantila config
+```
+
+## cantila config set
+
+Write a value to the config file:
+
+```bash
+cantila config set apiKey=ck_live_...
+cantila config set accountId=acc_abc123
+cantila config set controlPlaneUrl=https://api.cantila.app
+```
+
+<Note>
+  `cantila config set` only accepts `controlPlaneUrl`, `accountId` and
+  `apiKey`. The `actAs` default is managed separately via
+  `cantila accounts sub act-as <handle>` (and `--clear` to remove it).
+</Note>
+
+## Environment-variable overrides
+
+Every config value has an environment override. When set, the env var wins
+over the file — useful in CI, where you would rather not write a key to disk.
+
+| Variable | Overrides |
+| --- | --- |
+| `CANTILA_CONTROL_PLANE_URL` | `controlPlaneUrl` |
+| `CANTILA_ACCOUNT_ID` | `accountId` |
+| `CANTILA_API_KEY` | `apiKey` |
+| `CANTILA_ACT_AS` | `actAs` |
+
+```bash
+export CANTILA_API_KEY=ck_live_...
+export CANTILA_ACCOUNT_ID=acc_abc123
+cantila projects
+```
+
+## Pointing at a different control plane
+
+Override the control-plane URL to target a local or self-hosted instance:
+
+```bash
+# persist it
+cantila config set controlPlaneUrl=http://localhost:8080
+
+# or just for this shell
+export CANTILA_CONTROL_PLANE_URL=http://localhost:8080
+```
+
+## The --as sub-account flag
+
+`--as <handle>` is a global flag, available on every command. It scopes a
+single call to one of your sub-accounts (white-label impersonation) without
+changing any saved default:
+
+```bash
+cantila projects --as client-acme
+cantila deploy prj_abc123 --as client-acme
+```
+
+If you have a persisted `actAs` default (set via `cantila accounts sub act-as`
+or `CANTILA_ACT_AS`), `--as <handle>` overrides it for that one command. Pass
+an empty value to suppress the saved default for a single call:
+
+```bash
+cantila projects --as ''
+```
+
+## Where to next
+
+- [Get started with the CLI](/docs/cli) — install and ship your first deploy.
+- [Command reference](/docs/cli/commands) — every command, grouped by area.

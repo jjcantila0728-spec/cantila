@@ -1,0 +1,306 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Projects & deploys API", description: "Create projects, deploy and stream builds, read logs and metrics, manage env, scaling, backups, instances, previews, git, domains, and the project database.", path: "/docs/api/projects", type: "article" });
+
+# Projects & deploys API
+
+Projects are the unit Cantila deploys and runs. These endpoints create
+and inspect projects, trigger deploys, and manage everything attached to
+a project — env, scaling, backups, previews, git, domains, and its
+database. All endpoints require auth; mutations require the `deploy`
+scope (or `admin`).
+
+## Projects
+
+### GET /v1/projects
+
+List the projects in the current account.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/projects \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "projects": [
+    { "id": "prj_a1b2", "name": "marketing-site", "handle": "your-handle", "status": "running" }
+  ]
+}
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### POST /v1/projects
+
+Create a new project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `name` | string | Project name, unique within the account |
+| `runtime` | string | Optional runtime hint; auto-detected when omitted |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "marketing-site" }'
+```
+
+### GET /v1/projects/:id
+
+Fetch one project by its ID.
+
+Requires `read`.
+
+### GET /v1/projects/by-handle/:handle/:name
+
+Look up a project by account handle and project name — useful when you
+have the human-readable identifiers but not the ID.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/projects/by-handle/your-handle/marketing-site \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+## Deploys
+
+### POST /v1/projects/:id/deploy
+
+Trigger a deploy of the project's current source.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `ref` | string | Optional git ref / commit to deploy |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/deploy \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "ref": "main" }'
+```
+
+```json
+{ "deployId": "dep_77c1", "status": "queued" }
+```
+
+### POST /v1/projects/:id/deploy/stream
+
+Same as the deploy above, but the build and release log is streamed back
+over Server-Sent Events (SSE) as it happens — the Console uses this for
+its live build view.
+
+Requires `deploy`.
+
+```bash
+curl -N -X POST https://api.cantila.app/v1/projects/prj_a1b2/deploy/stream \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Accept: text/event-stream"
+```
+
+### POST /v1/deploy/plan
+
+Compute the deploy plan for a source without executing it — what would
+be built, how it would be wired, and the resources it would need.
+
+Requires `deploy`.
+
+## Logs & metrics
+
+### GET /v1/projects/:id/logs
+
+Stream or page the project's runtime logs.
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `since` | string | Optional ISO timestamp or relative window |
+| `limit` | number | Optional max lines to return |
+
+```bash
+curl "https://api.cantila.app/v1/projects/prj_a1b2/logs?since=10m" \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+### GET /v1/projects/:id/metrics
+
+CPU, memory, and request metrics for the project.
+
+Requires `read`.
+
+## Environment variables
+
+### GET /v1/projects/:id/env
+
+List the project's environment variables.
+
+Requires `read` (secret values may be masked).
+
+### POST /v1/projects/:id/env
+
+Set or update environment variables. Changes apply on the next deploy.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `vars` | object | Map of `KEY` to value |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/env \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "vars": { "API_BASE": "https://api.example.com" } }'
+```
+
+## Scaling & instances
+
+### POST /v1/projects/:id/scale
+
+Adjust how many instances run and the resource size of each.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `instances` | number | Number of instances to run |
+| `size` | string | Optional resource tier per instance |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/scale \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "instances": 2 }'
+```
+
+### GET /v1/projects/:id/instances
+
+List the currently running instances for the project.
+
+Requires `read`.
+
+## Backups
+
+### GET /v1/projects/:id/backups
+
+List backups taken for the project.
+
+Requires `read`.
+
+### POST /v1/projects/:id/backups
+
+Trigger a new backup.
+
+Requires `deploy`.
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/backups \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+## Previews
+
+### GET /v1/projects/:id/previews
+
+List preview deployments for the project.
+
+Requires `read`.
+
+### POST /v1/projects/:id/previews
+
+Create a preview deployment (e.g. for a branch or pull request).
+
+Requires `deploy`.
+
+## Git
+
+### GET /v1/projects/:id/git
+
+Read the project's git connection — repository, branch, and webhook
+status.
+
+Requires `read`.
+
+### POST /v1/projects/:id/git
+
+Connect or update the git repository for the project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `repo` | string | Repository URL or `owner/name` |
+| `branch` | string | Branch to deploy from |
+
+### POST /v1/projects/:id/git/rotate-secret
+
+Rotate the webhook signing secret for the project's git connection.
+
+Requires `deploy`.
+
+### POST /v1/projects/:id/git/webhook
+
+The inbound webhook endpoint git providers call to notify Cantila of
+pushes. Verified against the project's signing secret rather than an API
+key.
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/git/webhook \
+  -H "X-Hub-Signature-256: sha256=..." \
+  -H "Content-Type: application/json" \
+  -d '{ "ref": "refs/heads/main" }'
+```
+
+## Domains & aliases
+
+### GET /v1/projects/:id/domains
+
+List the domains attached to the project.
+
+Requires `read`.
+
+### GET /v1/projects/:id/aliases
+
+List the project's alias hostnames.
+
+Requires `read`.
+
+### POST /v1/projects/:id/aliases
+
+Add an alias hostname to the project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `hostname` | string | The alias to attach |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/aliases \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "hostname": "www.example.com" }'
+```
+
+## Database & assets
+
+### GET /v1/projects/:id/database
+
+Read the database wired to the project (connection metadata; secrets are
+delivered separately).
+
+Requires `read`.
+
+### GET /v1/projects/:id/assets
+
+List the static assets / objects associated with the project.
+
+Requires `read`.

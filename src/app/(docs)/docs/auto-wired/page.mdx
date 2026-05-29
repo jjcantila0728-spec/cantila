@@ -1,30 +1,49 @@
 import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
-  title: "Auto-wired services",
-  description: "The Postgres database, mailbox, and SMS number every Cantila project ships with — wired into the env before the first build runs.",
+  title: "Platform services",
+  description: "The database, storage, mailbox, and number every Cantila project ships with — wired into the env before the first build runs.",
   path: "/docs/auto-wired",
   type: "article",
 });
 
-# Auto-wired services
+# Platform services
 
-Every project deployed on Cantila gets its own dedicated database, its
-own email service, and its own SMS number — provisioned together with
+Every project deployed on Cantila gets its own dedicated database, object
+storage, an email service, and an SMS number — provisioned together with
 the project and wired into the environment before the first build runs.
+
+This page is the overview. Each service has its own page with the API
+surface and current phase status:
+
+- [Databases & storage](/docs/databases) — managed Postgres + S3-compatible buckets.
+- [Domains](/docs/domains) — search, register, and attach custom domains.
+- [Mail](/docs/mail) — first-party email provider.
+- [SMS, Voice & Numbers](/docs/sms) — telephony provider and number marketplace.
+- [Automations](/docs/automations) — managed n8n / OpenClaw + native workflow canvas.
+- [Connections](/docs/connections) — account-wide credentials reused across workflows.
+- [Agents](/docs/agents) — the self-healing brain and agent swarm.
+- [Templates](/docs/templates) — one-shot create + deploy marketplace.
 
 ## What's wired, by phase
 
-| Service           | Env var(s)                                              | Phase     | Default state               |
-| ----------------- | ------------------------------------------------------- | --------- | --------------------------- |
-| Postgres          | `DATABASE_URL`                                          | Live      | Real, running on Hetzner    |
-| Object storage    | `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_KEY`     | Live      | S3-compatible, per-project  |
-| Mailbox + SMTP    | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`      | Phase 2   | Stub adapter today          |
-| SMS number        | `SMS_FROM`, `SMS_API_KEY`                               | Phase 3   | Stub adapter today          |
-| Cantila API key   | `CANTILA_API_KEY` (scoped to the project)               | Live      | Used by the runtime SDK     |
+| Service           | Env var(s)                                              | Phase     | Default state                  |
+| ----------------- | ------------------------------------------------------- | --------- | ------------------------------ |
+| Postgres          | `DATABASE_URL`                                          | Live      | Real, running on Hetzner       |
+| Object storage    | `STORAGE_ENDPOINT`, `STORAGE_BUCKET`, `STORAGE_KEY`     | Live      | S3-compatible, per-project     |
+| Mailbox + SMTP    | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`      | Phase 2   | Real creds, stub MTA today     |
+| SMS number        | `SMS_FROM`, `SMS_API_KEY`                               | Phase 3   | Stub adapter today             |
+| Cantila API key   | `CANTILA_API_KEY` (scoped to the project)               | Live      | Used by the runtime SDK        |
+
+<Callout tone="warn" title="What works today">
+  - **Live:** Postgres (`DATABASE_URL`) and S3-compatible storage are real and running.
+  - **Phase 2:** Mailbox + per-project SMTP credentials are real and auto-wired, but no real bytes leave the MTA yet — the send path is a stub. See [Mail](/docs/mail).
+  - **Phase 3:** The SMS number is a stub adapter — outbound/inbound carrier delivery flips on as the phase ships. See [SMS](/docs/sms).
+</Callout>
 
 `Phase 2` and `Phase 3` env vars exist today against the stub adapters —
-you can write code that targets them and it will work; the live carrier
-delivery flips on as each phase ships. See the [changelog](/changelog).
+you can write code that targets them and it will work against the API; the
+live carrier delivery flips on as each phase ships. See the
+[changelog](/changelog).
 
 ## How the wiring works
 
@@ -72,13 +91,6 @@ The domain stays — it's a registrar product, billed separately from the
 project. Manage from **Console → Domains**.
 
 ## Why bundled
-
-Plan §4.2 says it best:
-
-> Every project deployed on Cantila is automatically provisioned with its
-> own dedicated managed database, its own email service, and its own SMS
-> number. These services are created together with the project, isolated
-> to it, and connected before the first build runs.
 
 The whole point: a builder ships an app and `DATABASE_URL` already
 resolves. No second vendor signup. No glue code. One bill.

@@ -1,0 +1,119 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Cantilapay webhooks", description: "Receive Cantilapay events and verify their signatures with cp.webhooks.verify, including a full Express handler.", path: "/docs/pay/webhooks", type: "article" });
+
+# Cantilapay webhooks <Badge tone="phase-2">phase-2</Badge>
+
+Cantilapay notifies your server of payment lifecycle events — a charge
+succeeding, a subscription renewing, and so on — by POSTing a signed JSON
+payload to an endpoint you register. Webhooks are how you react to things
+that happen asynchronously or outside a request you initiated.
+
+## How delivery works
+
+1. You register an HTTPS endpoint and receive a **signing secret**.
+2. Cantilapay POSTs each event as a JSON body, with a `Cantilapay-Signature` header.
+3. Your server **verifies the signature**, then acts on the event.
+4. Respond `2xx` quickly. Non-`2xx` responses are retried.
+
+The signature is an HMAC-SHA256 over `<timestamp>.<rawBody>` using your
+signing secret. The header looks like `t=1716900000,v1=<hex>`.
+
+<Callout>
+**Verify before you trust.** Always call `cp.webhooks.verify` on the **raw
+request body** before parsing or acting on an event. Parsing first and
+re-serializing will change the bytes and break verification.
+</Callout>
+
+## Verifying signatures
+
+`cp.webhooks.verify` validates both the timestamp (rejecting replays older
+than `toleranceSeconds`, default 300) and the HMAC. It returns `true` on
+success and **throws** otherwise.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `webhooks.verify(input)` | `{ rawBody, signatureHeader, signingSecret, toleranceSeconds? }` | `true` (throws on failure) | Validate a `Cantilapay-Signature` header. |
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `rawBody` | `string` | The exact raw request body bytes, as text. |
+| `signatureHeader` | `string` | The `Cantilapay-Signature` header value. |
+| `signingSecret` | `string` | Your endpoint's signing secret. |
+| `toleranceSeconds` | `number?` | Max signature age in seconds (default `300`). |
+
+## Full Express handler
+
+The key detail is capturing the **raw body**. Use `express.raw` for the
+webhook route so the bytes are untouched before verification.
+
+```ts
+import express from "express";
+import { Cantilapay } from "@cantila/cantilapay";
+
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!);
+const app = express();
+
+app.post(
+  "/webhooks/cantilapay",
+  express.raw({ type: "application/json" }),
+  (req, res) => {
+    const rawBody = req.body.toString("utf8");
+
+    try {
+      cp.webhooks.verify({
+        rawBody,
+        signatureHeader: req.header("Cantilapay-Signature")!,
+        signingSecret: process.env.CANTILAPAY_WEBHOOK_SECRET!,
+      });
+    } catch (err) {
+      // Bad signature or stale timestamp — reject.
+      return res.status(400).send("invalid signature");
+    }
+
+    const event = JSON.parse(rawBody);
+
+    switch (event.type) {
+      case "payment_intent.succeeded":
+        // fulfil the order
+        break;
+      case "subscription.renewed":
+        // extend access for another period
+        break;
+      default:
+        // ignore unrecognised event types
+        break;
+    }
+
+    // Acknowledge quickly; do heavy work asynchronously.
+    res.status(200).send("ok");
+  },
+);
+
+app.listen(3000);
+```
+
+<Note>
+Respond `2xx` as soon as the event is accepted. Offload slow work (emails,
+provisioning) to a queue so retries are not triggered by a slow handler.
+</Note>
+
+## Representative event types
+
+The event catalogue grows as coverage expands. Common types include:
+
+| Event | When it fires |
+| ----- | ------------- |
+| `payment_intent.succeeded` | A charge completed successfully. |
+| `payment_intent.failed` | A charge was declined or errored. |
+| `subscription.renewed` | A subscription billed for a new period. |
+| `subscription.canceled` | A subscription ended. |
+| `invoice.paid` | An invoice was paid. |
+| `refund.succeeded` | A refund completed. |
+
+Always branch on `event.type` and ignore types you do not handle, so new
+event types never break your endpoint.
+
+## See also
+
+- [SDK reference → Webhooks](./sdk#webhooks)
+- [Overview](../pay)

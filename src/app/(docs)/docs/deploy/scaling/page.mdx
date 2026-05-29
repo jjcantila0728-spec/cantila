@@ -1,0 +1,48 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Scaling, instances & sleep/wake", description: "Size your app's resources, run multiple instances, and choose sleep-on-idle or always-on.", path: "/docs/deploy/scaling", type: "article" });
+
+# Scaling, instances & sleep/wake
+
+Your project runs as one or more **instances** of its live deployment.
+Scaling adjusts how many instances run and how much resource each gets.
+
+## Scale a project
+
+Adjust scaling through the API:
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/PROJECT_ID/scale \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "instances": 2 }'
+```
+
+Inspect the running instances:
+
+```bash
+curl https://api.cantila.app/v1/projects/PROJECT_ID/instances \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Sleep on idle vs always-on
+
+By default, idle apps **sleep** to save resources and **wake on demand**
+when the next request arrives. For latency-sensitive workloads where you
+don't want a cold start, **pin the project always-on** so an instance is
+always running.
+
+| Mode       | Behavior                                              |
+| ---------- | ----------------------------------------------------- |
+| Sleep/wake | Idle app sleeps; wakes automatically on the next request |
+| Always-on  | An instance stays running; no wake delay              |
+
+<Callout tone="info" title="Tradeoff.">
+  Sleep/wake keeps lightweight or bursty apps efficient. Always-on trades a
+  bit of that efficiency for consistently fast first responses.
+</Callout>
+
+## Related
+
+- [Logs & metrics](/docs/deploy/logs) to watch load before you scale
+- [Rollbacks](/docs/deploy/rollbacks)
+- [Builds & the deploy pipeline](/docs/deploy/builds)

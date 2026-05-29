@@ -1,0 +1,101 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Databases & storage API", description: "Provision and list managed databases and object-storage buckets through the Cantila control-plane API.", path: "/docs/api/data", type: "article" });
+
+# Databases & storage API
+
+Provision managed databases and object-storage buckets. These resources
+can be wired into projects through the
+[Projects API](/docs/api/projects). All endpoints require auth;
+mutations require `admin`.
+
+## Databases
+
+### GET /v1/databases
+
+List the managed databases in the current account.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/databases \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "databases": [
+    { "id": "db_91a2", "engine": "postgres", "name": "app-db", "status": "ready" }
+  ]
+}
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### POST /v1/databases
+
+Provision a new managed database.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `engine` | string | `postgres` or `mongo` |
+| `name` | string | Database name |
+
+```bash
+curl -X POST https://api.cantila.app/v1/databases \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "engine": "postgres", "name": "app-db" }'
+```
+
+## Storage buckets
+
+### GET /v1/storage/buckets
+
+List object-storage buckets in the account.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/storage/buckets \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+### POST /v1/storage/buckets
+
+Create a new object-storage bucket.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `name` | string | Bucket name |
+
+```bash
+curl -X POST https://api.cantila.app/v1/storage/buckets \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "user-uploads" }'
+```
+
+```json
+{ "id": "bkt_5d3e", "name": "user-uploads", "status": "ready" }
+```
+
+### GET /v1/storage/buckets/:id
+
+Fetch one bucket by ID.
+
+Requires `read`.
+
+### DELETE /v1/storage/buckets/:id
+
+Delete a bucket. The bucket must be empty or the deletion is rejected.
+
+Requires `admin`.
+
+```bash
+curl -X DELETE https://api.cantila.app/v1/storage/buckets/bkt_5d3e \
+  -H "Authorization: Bearer sk_live_xxxx"
+```

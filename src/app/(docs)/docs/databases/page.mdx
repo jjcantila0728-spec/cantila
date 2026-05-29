@@ -1,0 +1,92 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Databases & storage",
+  description: "One-click managed PostgreSQL auto-wired as DATABASE_URL, plus S3-compatible object storage buckets per project.",
+  path: "/docs/databases",
+  type: "article",
+});
+
+# Databases & storage
+
+Provision a managed database and S3-compatible object storage for any
+project — credentials are minted per project and wired into the
+environment before the first build runs.
+
+<Badge tone="live">Postgres + storage — live</Badge>
+<Badge tone="phase-2">MySQL / MongoDB / Redis, backups, PITR, branching — phase 2</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live:** One-click managed **PostgreSQL** with per-project credentials, auto-wired as `DATABASE_URL`. S3-compatible **object storage** buckets.
+  - **Phase 2 (pending):** MySQL, MongoDB, and Redis engines; automated backups; point-in-time restore (PITR); and database branching.
+</Callout>
+
+## PostgreSQL
+
+Create a database and Cantila provisions a dedicated Postgres database
+with a per-project user, then injects the connection string as
+`DATABASE_URL` into the project secrets — marked `cantila-managed` and
+ready before your first build.
+
+```bash
+# Create a managed Postgres database for a project
+curl -X POST https://api.cantila.app/v1/databases \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "projectId": "proj_123", "engine": "postgres" }'
+```
+
+```bash
+# List databases
+curl https://api.cantila.app/v1/databases \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+Your app reads it straight from the environment:
+
+```ts
+const db = new Pool({ connectionString: process.env.DATABASE_URL });
+```
+
+<Note>
+  MySQL, MongoDB, and Redis are accepted as an `engine` value on the
+  roadmap but are **Phase 2**. Today, `postgres` is the only live engine.
+</Note>
+
+## Object storage
+
+Each project can provision S3-compatible buckets. Buckets are isolated to
+the project and expose standard S3 endpoints, so any S3 SDK works
+unchanged.
+
+```bash
+# Create a bucket
+curl -X POST https://api.cantila.app/v1/storage/buckets \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "projectId": "proj_123", "name": "uploads" }'
+```
+
+```bash
+# List buckets
+curl https://api.cantila.app/v1/storage/buckets \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+The endpoint, bucket name, and access key land in the project env as
+`STORAGE_ENDPOINT`, `STORAGE_BUCKET`, and `STORAGE_KEY`.
+
+## API reference
+
+| Method | Path                     | Status  | Notes                          |
+| ------ | ------------------------ | ------- | ------------------------------ |
+| `GET`  | `/v1/databases`          | Live    | List databases                 |
+| `POST` | `/v1/databases`          | Live    | Provision (Postgres live)      |
+| `GET`  | `/v1/storage/buckets`    | Live    | List buckets                   |
+| `POST` | `/v1/storage/buckets`    | Live    | Create a bucket                |
+
+## Sleep & teardown
+
+Hobby project databases sleep with the project (connections close, data
+retained); storage buckets stay live. Deleting a project drops its
+database and empties + drops its buckets. See
+[Platform services](/docs/auto-wired) for the full lifecycle.

@@ -1,0 +1,48 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Templates",
+  description: "A marketplace of starter apps — each card is a real one-shot create and deploy.",
+  path: "/docs/templates",
+  type: "article",
+});
+
+# Templates
+
+A marketplace of around a dozen starter apps. Each card is a real
+one-shot **create + deploy** — pick a template and Cantila provisions the
+project, wires its platform services, and deploys the app.
+
+## Using a template
+
+From the Console, browse the gallery at [`/templates`](/templates) and
+click a card to create and deploy in one shot. The new project ships with
+its [platform services](/docs/auto-wired) auto-wired — `DATABASE_URL` and
+storage resolve before the first build.
+
+## From the CLI
+
+```bash
+# List available templates
+cantila templates
+
+# Create + deploy from a template
+cantila templates use <template-id>
+```
+
+## What you get
+
+Each template create produces a normal Cantila project:
+
+- A dedicated managed [Postgres database](/docs/databases) wired as `DATABASE_URL`.
+- S3-compatible object storage.
+- A scoped `CANTILA_API_KEY`.
+- A running deploy you can immediately open.
+
+From there it behaves like any other project — deploy updates, attach a
+[custom domain](/docs/domains), and let the [agents](/docs/agents) keep it
+healthy.
+
+<Note>
+  Templates are live. Each one is a working create + deploy, not a
+  placeholder.
+</Note>

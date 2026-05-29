@@ -1,0 +1,104 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Organizations and sub-accounts",
+  description: "Per-user organizations, white-label sub-accounts, switching between orgs, per-account branding, and the act-as model.",
+  path: "/docs/orgs",
+  type: "article",
+});
+
+# Organizations and sub-accounts
+
+An organization is the container for your team, resources, and billing.
+Every user gets a personal org, and you can belong to as many orgs as
+you've been invited to. Agencies and resellers go further with
+**sub-accounts** — white-label tenants nested under one parent org.
+
+## Your organizations
+
+List the orgs you can access, switch the active one, or leave an org you
+no longer need.
+
+```bash
+# List orgs you belong to
+curl https://api.cantila.app/v1/me/orgs \
+  -H "Authorization: Bearer <api_key>"
+
+# Switch the active org
+curl -X POST https://api.cantila.app/v1/me/orgs/switch \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "orgId": "<org_id>" }'
+
+# Leave an org
+curl -X POST https://api.cantila.app/v1/me/orgs/leave \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "orgId": "<org_id>" }'
+```
+
+Switching changes which org your subsequent requests and Console views
+apply to. The active org also determines which [Team](/docs/teams) and
+[Billing](/docs/billing) you're looking at.
+
+<Note>
+  You can't leave an org you own while it still has other members or
+  active resources. Hand off ownership or wind the org down first.
+</Note>
+
+## Sub-accounts
+
+A sub-account is a fully separate tenant that lives under your parent
+org. Agencies use them to give each client an isolated workspace while
+keeping one place to manage them all.
+
+```bash
+# Create a sub-account under the active org
+curl -X POST https://api.cantila.app/v1/accounts/sub \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "Client Acme", "handle": "acme" }'
+```
+
+Each sub-account has its own resources, members, and branding. The
+`handle` is the short identifier you'll use to act as that sub-account.
+
+## Branding
+
+Customize the look of an account — its name, logo, and colors — so the
+Console reflects your or your client's brand.
+
+```bash
+# Read the current account's branding
+curl https://api.cantila.app/v1/accounts/me/branding \
+  -H "Authorization: Bearer <api_key>"
+
+# Update branding
+curl -X PUT https://api.cantila.app/v1/accounts/me/branding \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "displayName": "Acme Cloud", "primaryColor": "#0b5" }'
+```
+
+Branding applies per account, so each sub-account can present its own
+white-label identity.
+
+## The act-as model
+
+Rather than logging in separately to each sub-account, you act as one
+from your parent session. The CLI and API both support an **act-as
+handle** that scopes a command to a sub-account.
+
+```bash
+# Run any CLI command as a sub-account
+cantila apps list --as acme
+```
+
+The global `--as <handle>` flag targets the sub-account by its handle.
+Drop the flag and the command runs against your parent org. This keeps
+one set of credentials managing every tenant you own.
+
+<Callout tone="ember" title="One login, every tenant.">
+  Act-as means you never juggle credentials per client. Authenticate
+  once as the parent, then `--as <handle>` to operate inside any
+  sub-account you control.
+</Callout>

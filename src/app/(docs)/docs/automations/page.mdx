@@ -1,0 +1,66 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Automations",
+  description: "Managed n8n and OpenClaw instances behind a native Cantila workflow canvas — each automation is a typed Project.",
+  path: "/docs/automations",
+  type: "article",
+});
+
+# Automations
+
+Run managed **n8n** and **OpenClaw** instances behind a native Cantila
+workflow canvas (React-Flow). Each automation is a typed Project
+(`automationKind`), so it gets the same lifecycle, env, and billing as any
+other project.
+
+<Badge tone="phase-2">Automations — phase 2</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live today (Phase A):** The engine **port plus a stub engine**, and the **list + create** UI. You can create an automation Project and see it listed.
+  - **Pending:** The **native React-Flow canvas** and the **real n8n adapter** are landing within Phase 2. Until then, automations run against the stub engine.
+</Callout>
+
+## Creating an automation
+
+An automation is a Project with an `automationKind`. Create and manage
+them through the API, the Console at [`/automations`](/automations), or
+MCP.
+
+```bash
+# Create an automation project
+curl -X POST https://api.cantila.app/v1/automations \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "lead-router", "automationKind": "n8n" }'
+```
+
+```bash
+# List automations
+curl https://api.cantila.app/v1/automations \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## MCP tools
+
+Drive automations from an MCP client:
+
+| Tool                            | Purpose                          |
+| ------------------------------- | -------------------------------- |
+| `cantila_create_automation`     | Create an automation project     |
+| `cantila_list`                  | List automations                 |
+| `cantila_save_workflow`         | Save a workflow definition       |
+| `cantila_run_workflow`          | Trigger a workflow run           |
+
+## API reference
+
+| Method | Path                | Status                | Notes                              |
+| ------ | ------------------- | --------------------- | ---------------------------------- |
+| `GET`  | `/v1/automations`   | Live                  | List (Phase A)                     |
+| `POST` | `/v1/automations`   | Live                  | Create typed project (Phase A)     |
+| `*`    | `/v1/automations/*` | Phase 2               | Workflow run on stub engine        |
+
+<Note>
+  Reusable credentials for the steps in a workflow come from
+  [Connections](/docs/connections) — connect a provider once and reference
+  it by id across automations.
+</Note>

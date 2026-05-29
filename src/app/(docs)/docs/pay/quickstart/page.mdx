@@ -1,0 +1,123 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Cantilapay quickstart", description: "Install the Cantilapay SDK, construct the client, and take your first payment end to end.", path: "/docs/pay/quickstart", type: "article" });
+
+# Cantilapay quickstart <Badge tone="phase-2">phase-2</Badge>
+
+This guide takes you from zero to a confirmed charge in test mode. You will
+install the SDK, construct the client from an environment variable, create
+a customer, attach a payment method, and create then confirm a payment
+intent.
+
+<Callout>
+Start in **test mode** with a `csk_test_…` key. Make sure your account's
+`testReady` is `true` (complete onboarding first — see the
+[overview](../pay)).
+</Callout>
+
+## 1. Install
+
+```bash
+npm install @cantila/cantilapay
+```
+
+Requires **Node.js >= 18** (the SDK uses the global `fetch`).
+
+## 2. Set your secret key
+
+The key is a bearer secret. Keep it in an environment variable:
+
+```bash
+export CANTILAPAY_SECRET_KEY="csk_test_..."
+```
+
+## 3. Construct the client
+
+```ts
+import { Cantilapay } from "@cantila/cantilapay";
+
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!);
+```
+
+You can pass options as a second argument:
+
+```ts
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!, {
+  baseUrl: "https://api.cantila.com", // default
+  timeoutMs: 30000,                   // default
+  autoIdempotency: true,              // default
+});
+```
+
+| Option | Type | Default | Description |
+| ------ | ---- | ------- | ----------- |
+| `baseUrl` | `string` | `https://api.cantila.com` | API host. |
+| `timeoutMs` | `number` | `30000` | Per-request timeout. |
+| `autoIdempotency` | `boolean` | `true` | Auto-attach an idempotency key to mutating calls. |
+| `fetch` | `typeof fetch` | global `fetch` | Override the fetch implementation (tests / Node 16). |
+
+## 4. Take your first payment
+
+This is a full, runnable example. The `pspToken` comes from the Adyen
+Drop-in component on your client; here we use a test token.
+
+```ts
+import { Cantilapay } from "@cantila/cantilapay";
+
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!);
+
+async function main() {
+  // 1. Create a customer.
+  const customer = await cp.customers.create({
+    email: "buyer@example.com",
+    name: "Smoke Buyer",
+  });
+
+  // 2. Attach a payment method (token captured client-side).
+  const method = await cp.paymentMethods.create({
+    pspToken: "tok_test_visa",
+    customerId: customer.id,
+  });
+
+  // 3. Create a payment intent. Amount is in minor units: 1000 = $10.00.
+  const intent = await cp.paymentIntents.create({
+    amount: 1000,
+    currency: "usd",
+    customerId: customer.id,
+    paymentMethodId: method.id,
+    description: "First test charge",
+  });
+
+  // 4. Confirm the charge.
+  const confirmed = await cp.paymentIntents.confirm(intent.id);
+  console.log(confirmed.status); // → "succeeded"
+}
+
+main().catch(console.error);
+```
+
+<Note>
+**Amounts are integer minor units.** `1000` in `usd` is **$10.00**. Never
+pass a decimal.
+</Note>
+
+## 5. Idempotency
+
+Every mutating call (POST / PUT / PATCH / DELETE) automatically gets a
+generated `Cantilapay-Idempotency-Key`, so a retried request never
+double-charges. Override it with your own key to make a specific operation
+safely retryable:
+
+```ts
+await cp.paymentIntents.create(
+  { amount: 1000, currency: "usd", customerId: customer.id },
+  { idempotencyKey: "order-4821" },
+);
+```
+
+See [Idempotency](./sdk#idempotency) in the SDK reference for the full
+behaviour.
+
+## Next steps
+
+- [SDK reference](./sdk) — every resource and method.
+- [Webhooks](./webhooks) — react to `payment_intent.succeeded` and more.

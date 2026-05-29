@@ -1,0 +1,323 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Account & access API", description: "Whoami, accounts and sub-accounts, branding, org membership, team members, invites, API keys, and authentication for the Cantila control-plane API.", path: "/docs/api/account", type: "article" });
+
+# Account & access API
+
+Identity, accounts and sub-accounts, team and org membership, invites,
+API keys, and the authentication endpoints. Most endpoints require auth;
+the `/auth/*` endpoints that establish a session are the exceptions.
+
+## Identity
+
+### GET /v1/me
+
+Whoami — the authenticated user and the account the credential resolves
+to.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/me \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "user": { "id": "usr_8f2a", "email": "you@example.com", "name": "You" },
+  "account": { "id": "acc_3b1c", "handle": "your-handle", "plan": "pro" }
+}
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+## Org membership
+
+### GET /v1/me/orgs
+
+List the organisations / accounts the current user belongs to.
+
+Requires `read`.
+
+### POST /v1/me/orgs/switch
+
+Switch the active organisation for the current session.
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `orgId` | string | The org to switch into |
+
+### POST /v1/me/orgs/leave
+
+Leave an organisation the user is a member of.
+
+Requires `read`.
+
+## Accounts & sub-accounts
+
+### GET /v1/accounts
+
+List accounts visible to the current user.
+
+Requires `read`.
+
+### POST /v1/accounts
+
+Create an account.
+
+Requires `admin`.
+
+### GET /v1/accounts/me
+
+The current account's full record.
+
+Requires `read`.
+
+### POST /v1/accounts/sub
+
+Create a sub-account under the current account (agency / reseller).
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `handle` | string | Handle for the new sub-account |
+| `name` | string | Display name |
+
+```bash
+curl -X POST https://api.cantila.app/v1/accounts/sub \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "handle": "client-acme", "name": "Acme Co" }'
+```
+
+### GET /v1/accounts/me/branding
+
+Read the current account's branding (logo, colours, white-label
+settings).
+
+Requires `read`.
+
+### PUT /v1/accounts/me/branding
+
+Update the current account's branding.
+
+Requires `admin`.
+
+### GET /v1/accounts/:id/branding
+
+Read another account's branding (e.g. a sub-account's).
+
+Requires `read`.
+
+### GET /v1/accounts/:id/billing-rollup
+
+Rolled-up billing for an account and its sub-accounts — the agency
+view.
+
+Requires `admin`.
+
+### POST /v1/accounts/me/anthropic-key
+
+Set the account's Anthropic API key, used to power agent and AI
+features with your own key.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `key` | string | The Anthropic API key to store |
+
+### POST /v1/account/me/change-password
+
+Change the signed-in user's password.
+
+Requires an authenticated session.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `currentPassword` | string | The existing password |
+| `newPassword` | string | The new password |
+
+## Team members
+
+### GET /v1/team/members
+
+List members of the current account's team.
+
+Requires `read`.
+
+### POST /v1/team/members
+
+Add a team member.
+
+Requires `admin`.
+
+### DELETE /v1/team/members/:id
+
+Remove a team member.
+
+Requires `admin`.
+
+```bash
+curl -X DELETE https://api.cantila.app/v1/team/members/mbr_22a1 \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+## Invites
+
+### GET /v1/invites
+
+List pending invites for the account.
+
+Requires `read`.
+
+### POST /v1/invites
+
+Create an invite.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `email` | string | Who to invite |
+| `role` | string | Role to grant on acceptance |
+
+### GET /v1/invites/:id
+
+Fetch one invite by ID.
+
+Requires `read`.
+
+### DELETE /v1/invites/:id
+
+Revoke an invite.
+
+Requires `admin`.
+
+### POST /v1/invites/accept
+
+Accept an invite as the authenticated user.
+
+Requires an authenticated session.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `token` | string | The invite token |
+
+### GET /v1/invites/by-token/:token
+
+Look up an invite by its token — used to render the acceptance screen
+before the user has signed in.
+
+Public (token acts as the credential).
+
+## API keys
+
+### GET /v1/api-keys
+
+List the account's API keys (the secret is shown only at creation).
+
+Requires `admin`.
+
+### POST /v1/api-keys
+
+Create an API key with a scope.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `name` | string | Label for the key |
+| `scope` | string | `read`, `deploy`, or `admin` |
+
+```bash
+curl -X POST https://api.cantila.app/v1/api-keys \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "name": "ci-deploy", "scope": "deploy" }'
+```
+
+```json
+{ "id": "key_5a31", "name": "ci-deploy", "scope": "deploy", "secret": "sk_live_xxxxxxxx" }
+```
+
+<Callout tone="warn" title="The secret is shown once.">
+  The full `sk_…` value is returned only in this create response. Store
+  it now; you cannot retrieve it again.
+</Callout>
+
+### DELETE /v1/api-keys/:id
+
+Revoke an API key.
+
+Requires `admin`.
+
+## Authentication
+
+These endpoints establish or end a session and are used by the Console's
+login flows.
+
+### POST /v1/auth/login
+
+Sign in with email and password; sets the `cantila_session` cookie.
+
+```bash
+curl -X POST https://api.cantila.app/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "you@example.com", "password": "..." }'
+```
+
+### POST /v1/auth/register
+
+Create a new user account.
+
+### POST /v1/auth/logout
+
+End the current session.
+
+### GET /v1/auth/session
+
+Return the current session, if any — used by the Console to bootstrap.
+
+### POST /v1/auth/forgot
+
+Begin a password reset by email.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `email` | string | The account email |
+
+### POST /v1/auth/reset-password
+
+Complete a password reset with the emailed token.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `token` | string | The reset token |
+| `password` | string | The new password |
+
+### POST /v1/auth/verify-email/request
+
+Send (or resend) the email-verification message.
+
+### POST /v1/auth/verify-email/confirm
+
+Confirm an email address with the verification token.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `token` | string | The verification token |
+
+### GET /v1/auth/sso/info
+
+SSO configuration available for the account / domain.
+
+### GET /v1/auth/sso/start
+
+Begin an SSO login, redirecting to the identity provider.
+
+### POST /v1/auth/sso/login
+
+Complete an SSO login from the provider's callback.

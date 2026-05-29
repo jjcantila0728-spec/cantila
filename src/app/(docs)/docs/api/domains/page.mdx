@@ -1,0 +1,96 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Domains API", description: "Search domain availability, quote a registration price, and register or list domains through the Cantila control-plane API.", path: "/docs/api/domains", type: "article" });
+
+# Domains API
+
+Search, price, and register domains. Registered domains can then be
+attached to projects through the [Projects API](/docs/api/projects). All
+endpoints require auth.
+
+## Search & quote
+
+### GET /v1/domains/search
+
+Check availability for a domain (and typically suggested alternatives).
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `q` | string | The domain or keyword to search |
+
+```bash
+curl "https://api.cantila.app/v1/domains/search?q=example.com" \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "query": "example.com",
+  "results": [
+    { "domain": "example.com", "available": false },
+    { "domain": "example.app", "available": true }
+  ]
+}
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### POST /v1/domains/quote
+
+Get a registration price quote for one or more domains before
+committing.
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `domain` | string | The domain to quote |
+| `years` | number | Optional registration term |
+
+```bash
+curl -X POST https://api.cantila.app/v1/domains/quote \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "domain": "example.app", "years": 1 }'
+```
+
+```json
+{ "domain": "example.app", "currency": "USD", "price": "14.00", "years": 1 }
+```
+
+## Registrations
+
+### GET /v1/domains/registrations
+
+List the domains registered in the current account.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/domains/registrations \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+### POST /v1/domains/registrations
+
+Register a domain. The charge lands on your single Cantila invoice — see
+[Billing](/docs/api/billing).
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `domain` | string | The domain to register |
+| `years` | number | Optional registration term |
+
+```bash
+curl -X POST https://api.cantila.app/v1/domains/registrations \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "domain": "example.app", "years": 1 }'
+```
+
+```json
+{ "domain": "example.app", "status": "registered", "expiresAt": "2027-05-28" }
+```

@@ -1,0 +1,40 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Preview environments", description: "Per-branch preview deployments with their own URLs, tied to your git connection.", path: "/docs/deploy/previews", type: "article" });
+
+# Preview environments
+
+Preview environments give each branch its own deployment with its own URL —
+so you can see a change running before it reaches production. Previews are
+tied to your [git connection](/docs/deploy/git): connect a repo, and Cantila
+can build previews per branch.
+
+## How it works
+
+When git is connected, Cantila creates a preview deployment for a branch,
+each with a distinct URL you can share for review. Scope variables to
+previews with the `preview` scope — see [env & secrets](/docs/deploy/env).
+
+```bash
+curl https://api.cantila.app/v1/projects/PROJECT_ID/previews \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Requirements
+
+| Need                | Why                                        |
+| ------------------- | ------------------------------------------ |
+| A [git connection](/docs/deploy/git) | Previews are driven per branch from your repo |
+| Branch + auto-deploy honored          | Cantila builds the branch on changes          |
+
+<Callout tone="info" title="Preview automation is maturing.">
+  Per-branch preview deployments and their URLs are in place. Some of the
+  surrounding automation is still maturing — check the
+  <a href="/docs/deploy/git">git</a> page and the changelog for the current
+  state before relying on a specific behavior.
+</Callout>
+
+## Related
+
+- [Push-to-deploy (git)](/docs/deploy/git)
+- [Env & secrets](/docs/deploy/env) — the `preview` scope
+- [Logs & metrics](/docs/deploy/logs)

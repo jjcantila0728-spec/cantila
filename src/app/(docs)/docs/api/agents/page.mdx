@@ -1,0 +1,166 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Agents & monitoring API", description: "Inspect and control autonomous agents, read the activity audit, monitoring, capacity, nodes, account metrics, cost optimisation, and SEO audits.", path: "/docs/api/agents", type: "article" });
+
+# Agents & monitoring API
+
+These endpoints expose Cantila's autonomous agents, the activity audit
+they write to, and the platform-health surface — monitoring, capacity,
+nodes, account metrics, and the cost and SEO helpers. All endpoints
+require auth.
+
+## Agents
+
+### GET /v1/agents/status
+
+Current state of the account's agents — running, paused, and what
+they're working on.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/agents/status \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{ "agents": [ { "id": "agt_ops", "name": "ops", "state": "running" } ] }
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### POST /v1/agents/pause
+
+Pause agent activity for the account.
+
+Requires `admin`.
+
+### POST /v1/agents/resume
+
+Resume previously paused agents.
+
+Requires `admin`.
+
+### GET /v1/agents/proposals
+
+List the actions agents have proposed but not yet executed — pending
+work awaiting approval.
+
+Requires `read`.
+
+## Activity audit
+
+### GET /v1/activity
+
+The immutable audit log of every mutation in the account, including
+actions agents took on your behalf.
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `since` | string | Optional ISO timestamp lower bound |
+| `limit` | number | Optional max records to return |
+
+```bash
+curl "https://api.cantila.app/v1/activity?limit=50" \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "events": [
+    { "id": "evt_91", "actor": "usr_8f2a", "action": "project.deploy", "at": "2026-05-28T10:00:00Z" }
+  ]
+}
+```
+
+## Monitoring & capacity
+
+### GET /v1/monitoring
+
+Platform health and monitoring signals for the account's workloads.
+
+Requires `read`.
+
+### GET /v1/capacity
+
+Available capacity and headroom across the account's resources.
+
+Requires `read`.
+
+## Nodes
+
+### GET /v1/nodes
+
+List the compute nodes backing the account's workloads.
+
+Requires `read`.
+
+### POST /v1/nodes
+
+Add a node.
+
+Requires `admin`.
+
+### GET /v1/nodes/:id
+
+Fetch one node by ID.
+
+Requires `read`.
+
+### GET /v1/nodes/summary
+
+Aggregated node health and utilisation summary.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/nodes/summary \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+## Metrics & cost
+
+### GET /v1/metrics/account
+
+Account-wide resource metrics — the rolled-up usage that feeds metered
+billing.
+
+Requires `read`.
+
+### POST /v1/cost/optimise
+
+Run a cost-optimisation pass and return recommended changes (e.g.
+right-sizing, sleep candidates).
+
+Requires `admin`.
+
+```bash
+curl -X POST https://api.cantila.app/v1/cost/optimise \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+## AI & SEO
+
+### GET /v1/ai/info
+
+AI subsystem status and configured capabilities for the account.
+
+Requires `read`.
+
+### POST /v1/seo/audit
+
+Run an SEO audit against a target and return findings.
+
+Requires `read`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `url` | string | The URL or project to audit |
+
+```bash
+curl -X POST https://api.cantila.app/v1/seo/audit \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://yourapp.com" }'
+```

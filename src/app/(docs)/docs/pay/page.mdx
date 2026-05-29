@@ -1,0 +1,100 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Cantilapay overview", description: "Accept payments with a Stripe-shaped, Cantila-owned API built on Adyen for Platforms, with your tenant as the merchant of record.", path: "/docs/pay", type: "article" });
+
+# Cantilapay <Badge tone="phase-2">phase-2</Badge>
+
+Cantilapay lets your application accept payments through a single,
+Stripe-shaped API. Under the hood it is **Cantila-owned and built on
+[Adyen for Platforms](https://www.adyen.com/platforms)** — but you never
+touch Adyen directly. You call one SDK, `@cantila/cantilapay`, and Cantila
+handles the platform orchestration.
+
+The shape will feel familiar if you have ever used Stripe: customers,
+payment intents, payment methods, subscriptions, products, prices,
+invoices, refunds, checkout sessions, a billing portal, payouts, balance,
+tax, and webhooks. The names and lifecycles are deliberately close.
+
+<Callout>
+**What works today.** Cantilapay is early. Build and test everything in
+**test mode** first — create a Cantilapay account, complete onboarding for
+`test`, and run the full payment lifecycle against test cards. Live mode
+unlocks per account once KYC for `live` is approved. Treat the API as
+stable in shape but expanding in coverage.
+</Callout>
+
+## Tenant as merchant of record
+
+In Cantilapay, **your Cantila tenant is the merchant of record (MoR)**.
+Funds settle to your connected account; Cantila orchestrates the platform
+and takes a platform fee (surfaced as `platformFeeBps` on your account and
+`platformFeeAmount` on each payment intent). This is the "platform model" —
+you onboard once, then transact under your own merchant identity.
+
+## Test vs live mode
+
+Every object carries a `mode` of `test` or `live`. Your API key is scoped
+to one mode, so you never mix test and live data:
+
+| Mode | Key prefix | Purpose |
+| ---- | ---------- | ------- |
+| `test` | `csk_test_…` | Build and verify with test cards. No real money moves. |
+| `live` | `csk_live_…` | Real charges. Requires approved `live` onboarding. |
+
+Your account exposes `testReady` and `liveReady` booleans so you can check
+which modes are usable before you transact.
+
+## Onboarding (KYC)
+
+Before you can charge in a given mode, the account must complete hosted
+KYC. Generate a one-time onboarding link and redirect the merchant to it:
+
+```ts
+import { Cantilapay } from "@cantila/cantilapay";
+
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!);
+
+const { url, expiresAt } = await cp.accounts.onboardingLink({
+  mode: "test",
+  country: "US",
+  returnUrl: "https://app.example.com/settings/payments",
+});
+
+// Redirect the merchant to `url`; they return to `returnUrl` when done.
+```
+
+When they return, check the account status:
+
+```ts
+const account = await cp.accounts.retrieve();
+console.log(account.status);     // "created" | "onboarding" | "active" | "rejected" | "disabled"
+console.log(account.testReady);  // true once test KYC is approved
+console.log(account.liveReady);  // true once live KYC is approved
+```
+
+## Where keys come from
+
+Your Cantilapay secret key is a **bearer secret**. Issue it from the
+Cantila Console under your tenant's Cantilapay settings, then store it in
+an environment variable — never in client-side code or version control:
+
+```bash
+export CANTILAPAY_SECRET_KEY="csk_test_..."
+```
+
+The SDK reads nothing implicitly — you pass the key explicitly to the
+constructor (see the [quickstart](./pay/quickstart)). Use a `test` key
+during development and swap to a `live` key only in production.
+
+## Amounts are minor units
+
+<Note>
+All amounts are **integer minor units** of the currency. `1000` in `usd`
+means **$10.00**. There are no floats and no decimal amounts anywhere in
+the API.
+</Note>
+
+## Next steps
+
+- [Quickstart](./pay/quickstart) — install, construct the client, and take your first payment.
+- [SDK reference](./pay/sdk) — every resource, method, error, and enum.
+- [Webhooks](./pay/webhooks) — receive and verify events.

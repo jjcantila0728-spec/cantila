@@ -1,0 +1,57 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Backups & restore", description: "Capture point-in-time project snapshots and restore them from the Console or CLI.", path: "/docs/deploy/backups", type: "article" });
+
+# Backups & restore
+
+A backup is a **point-in-time snapshot** of a project. Each snapshot records
+the live deployment id, the project's env vars, and the managed database id —
+enough to put the project back the way it was.
+
+## From the CLI
+
+```bash
+cantila backups list <projectId>
+cantila backups create <projectId> --note "before the big refactor"
+cantila backups restore <projectId> <backupId>
+cantila backups delete <projectId> <backupId>
+```
+
+Use `--note` when creating a backup to label why you took it.
+
+## From the Console
+
+Open the project's **Backups** tab to create a snapshot, browse existing
+ones, restore, or delete.
+
+## What a snapshot captures
+
+| Captured            | Detail                                  |
+| ------------------- | --------------------------------------- |
+| Live deployment id  | Which built image was live              |
+| Env vars            | The project environment at that moment  |
+| Managed database id | The project's managed database          |
+
+## How restore works
+
+Restoring **reuses [rollback](/docs/deploy/rollbacks)**: Cantila
+re-promotes the snapshot's recorded deployment to live. Because the image
+already exists, there's no rebuild.
+
+## API
+
+```bash
+# List
+curl https://api.cantila.app/v1/projects/PROJECT_ID/backups \
+  -H "Authorization: Bearer <api_key>"
+
+# Create
+curl -X POST https://api.cantila.app/v1/projects/PROJECT_ID/backups \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "note": "before the big refactor" }'
+```
+
+## Related
+
+- [Rollbacks](/docs/deploy/rollbacks)
+- [Env & secrets](/docs/deploy/env)

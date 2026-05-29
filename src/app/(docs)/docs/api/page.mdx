@@ -1,0 +1,118 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "REST API reference", description: "Base URL, authentication, sub-account act-as, errors, and the activity audit for the Cantila control-plane API.", path: "/docs/api", type: "article" });
+
+# REST API reference
+
+The Cantila control-plane API is a JSON REST API. Everything the Console
+and the `cantila` CLI do — deploy, scale, manage domains, read metrics,
+move billing — runs through these same endpoints. This reference
+documents the public surface.
+
+## Base URL
+
+All endpoints live under a single versioned base:
+
+```bash
+https://api.cantila.app/v1
+```
+
+Every path in this reference is relative to that base. A request to
+`GET /projects` means `GET https://api.cantila.app/v1/projects`.
+
+## Authentication
+
+There are two ways to authenticate. Most endpoints require one of them;
+`GET /v1/health` is the only public endpoint.
+
+| Mode | Header / mechanism | Used by |
+| ---- | ------------------ | ------- |
+| API key | `Authorization: Bearer sk_…` | CLI, scripts, integrations |
+| Session cookie | `cantila_session` | The Console (browser) |
+
+API keys are created in the Console under API keys, or with
+`cantila keys create`. Each key carries a **scope**:
+
+| Scope | Grants |
+| ----- | ------ |
+| `read` | Read-only access — list and inspect resources |
+| `deploy` | Everything in `read`, plus deploys, scaling, env, restarts |
+| `admin` | Full access including billing, team, and account settings |
+
+```bash
+curl https://api.cantila.app/v1/me \
+  -H "Authorization: Bearer sk_live_xxxxxxxxxxxxxxxxxxxx"
+```
+
+```json
+{
+  "user": { "id": "usr_8f2a", "email": "you@example.com", "name": "You" },
+  "account": { "id": "acc_3b1c", "handle": "your-handle", "plan": "pro" }
+}
+```
+
+<Note>
+  `GET /v1/me` is the whoami call. Hit it first when wiring a new key to
+  confirm which user and account the credential resolves to. The response
+  shape above is representative.
+</Note>
+
+## Sub-accounts (act-as)
+
+Agency and reseller accounts can operate inside one of their
+sub-accounts without switching credentials. Send the sub-account handle
+in a header:
+
+```bash
+curl https://api.cantila.app/v1/projects \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "X-Cantila-Act-As: client-acme"
+```
+
+With the CLI, the same thing is `--as client-acme`. The acting user must
+have access to the target sub-account or the request is rejected with
+`403`.
+
+## Errors
+
+Any non-2xx response returns a JSON body with a human-readable message.
+
+| Status | Meaning |
+| ------ | ------- |
+| `401` | Unauthenticated — missing or invalid credential |
+| `403` | Forbidden — authenticated but not allowed (scope or act-as) |
+| `404` | Not found — the resource does not exist |
+| `422` | Validation — the request body or params failed validation |
+
+```json
+{ "error": "validation", "message": "instances must be a positive integer" }
+```
+
+<Callout tone="info" title="Error bodies are representative.">
+  The exact field set varies by endpoint, but every error carries a
+  message you can surface to a user or log.
+</Callout>
+
+## Activity audit
+
+Every mutation through the API — including actions taken by agents on
+your behalf — is recorded to an immutable audit log. Read it back at any
+time:
+
+```bash
+curl https://api.cantila.app/v1/activity \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+See the [Agents & monitoring](/docs/api/agents) page for the full
+activity, monitoring, and capacity surface.
+
+## Reference sections
+
+- [Projects & deploys](/docs/api/projects)
+- [Domains](/docs/api/domains)
+- [Databases & storage](/docs/api/data)
+- [Mail](/docs/api/mail)
+- [SMS, voice & numbers](/docs/api/sms)
+- [Agents & monitoring](/docs/api/agents)
+- [Billing](/docs/api/billing)
+- [Account & access](/docs/api/account)

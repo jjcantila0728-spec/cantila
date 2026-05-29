@@ -1,7 +1,7 @@
 import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
   title: "Cantila MCP server",
-  description: "Add the Cantila MCP server to Claude in 30 seconds — every Claude surface gets cantila_deploy, cantila_provision_db, and 23 more tools.",
+  description: "Add the Cantila MCP server to Claude in 30 seconds — every Claude surface gets cantila_deploy, cantila_provision_db, and the rest of the Cantila toolset.",
   path: "/docs/mcp",
   type: "article",
 });
@@ -11,9 +11,17 @@ export const metadata = buildPageMetadata({
 Cantila publishes a remote MCP (Model Context Protocol) server. Add it
 once to Claude (Claude Code, the Claude app, Cowork, any MCP host) and
 every Claude surface gets `cantila_deploy`, `cantila_provision_db`,
-`cantila_add_domain`, and 22 more tools as native capabilities.
+`cantila_add_domain`, and the rest of the Cantila toolset as native
+capabilities. Any project you build in Claude ships to Cantila by asking.
 
 There's a [marketing overview](/mcp) for the why; this is the how.
+
+<Note>
+  The MCP server is one of two ways Cantila connects to Claude. The other
+  is to [connect your Claude account](/docs/claude-account) so the Chat
+  Deploy assistant reasons on your own subscription. They're independent —
+  use either, both, or neither.
+</Note>
 
 ## Mint an API key
 
@@ -102,8 +110,11 @@ No local proxy needed.
 | `cantila_rollback`     | Roll back to a previous deployment.                           |
 | `cantila_agents_status`| Read what the brain has decided, what's queued for review.    |
 
-Plus automation, connection, and billing tools — the full list is in the
-API reference.
+Plus backup tools — `cantila_create_backup`, `cantila_list_backups`,
+`cantila_restore_backup` — automation tools — `cantila_create_automation`,
+`cantila_list_automations`, `cantila_save_workflow`, `cantila_run_workflow`
+— and connection tools — `cantila_list_connections`,
+`cantila_create_connection`. The full list is in the API reference.
 
 ## What one ask looks like
 

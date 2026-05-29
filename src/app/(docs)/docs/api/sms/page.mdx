@@ -1,0 +1,286 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "SMS, voice & numbers API", description: "Send SMS and OTPs, place and route voice calls, manage phone numbers, and register A2P brands and campaigns — the Cantila telephony control-plane API.", path: "/docs/api/sms", type: "article" });
+
+# SMS, voice & numbers API
+
+<Badge tone="phase-3">Phase 3 — endpoints live, telephony stubbed</Badge>
+
+The full SMS, voice, numbers, and A2P surface is wired through these
+endpoints. The underlying telephony runs through a stub adapter today —
+calls are accepted, recorded, and reflected in inbox/status reads, but
+no real message or call is placed until the carrier integration ships.
+All endpoints require auth.
+
+<Callout tone="warn" title="Telephony is stubbed.">
+  SMS sends, OTP requests, and voice calls succeed and appear in the
+  activity audit, but nothing reaches a real handset yet. Build against
+  the shapes now; real delivery turns on with Phase 3.
+</Callout>
+
+## Project SMS
+
+### POST /v1/projects/:id/sms/send
+
+Send an SMS from a project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `to` | string | Destination number (E.164) |
+| `from` | string | Sending number owned by the project |
+| `body` | string | Message text |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/sms/send \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551230000", "from": "+15557890000", "body": "Your code is 123456" }'
+```
+
+```json
+{ "id": "sms_2a90", "status": "accepted", "stubbed": true }
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### POST /v1/projects/:id/sms/otp/request
+
+Request a one-time passcode be sent to a number.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `to` | string | Destination number (E.164) |
+
+### POST /v1/projects/:id/sms/otp/verify
+
+Verify a one-time passcode the user entered.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `to` | string | The number the code was sent to |
+| `code` | string | The code to verify |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/sms/otp/verify \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551230000", "code": "123456" }'
+```
+
+### POST /v1/projects/:id/sms/inbound
+
+Inbound webhook endpoint for SMS addressed to the project. Called by the
+SMS pipeline, not by API-key clients.
+
+### GET /v1/projects/:id/sms/inbox
+
+Read received SMS for the project.
+
+Requires `read`.
+
+### GET /v1/projects/:id/sms/status
+
+Delivery status for the project's recent outbound messages.
+
+Requires `read`.
+
+### POST /v1/projects/:id/sms/opt-out
+
+Record an opt-out / STOP for a number so the project no longer messages
+it.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `number` | string | The number opting out |
+
+## Fleet & deliverability
+
+### GET /v1/sms/fleet
+
+Account-wide view of SMS-sending numbers and their state.
+
+Requires `read`.
+
+### GET /v1/sms/inbox
+
+Account-level aggregated SMS inbox.
+
+Requires `read`.
+
+### GET /v1/sms/deliverability
+
+SMS deliverability signals across the account.
+
+Requires `read`.
+
+### GET /v1/sms/otp
+
+OTP issuance and verification stats across the account.
+
+Requires `read`.
+
+## Numbers
+
+### GET /v1/numbers
+
+List the phone numbers owned by the account.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/numbers \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+### GET /v1/numbers/catalog
+
+Browse purchasable numbers by area, type, and capability.
+
+Requires `read`.
+
+### GET /v1/numbers/:id
+
+Fetch one number by ID.
+
+Requires `read`.
+
+### POST /v1/numbers/port-in
+
+Begin porting an existing number into Cantila.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `number` | string | The number to port in (E.164) |
+| `carrier` | string | Current carrier |
+
+### POST /v1/numbers/:id/complete-port
+
+Complete a previously initiated port-in once the losing carrier
+releases the number.
+
+Requires `admin`.
+
+### POST /v1/numbers/:id/transfer
+
+Transfer a number to another sub-account.
+
+Requires `admin`.
+
+## Voice
+
+### POST /v1/projects/:id/voice/calls
+
+Place an outbound voice call from a project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `to` | string | Destination number (E.164) |
+| `from` | string | Calling number owned by the project |
+
+### GET /v1/projects/:id/voice/status
+
+Status of the project's recent voice calls.
+
+Requires `read`.
+
+### POST /v1/projects/:id/voice/inbound
+
+Inbound webhook endpoint for calls to the project. Called by the voice
+pipeline, not by API-key clients.
+
+### GET /v1/projects/:id/voice/routing
+
+Read the project's inbound call routing rules.
+
+Requires `read`.
+
+### POST /v1/projects/:id/voice/routing
+
+Set the project's inbound call routing rules.
+
+Requires `deploy`.
+
+### GET /v1/voice/calls
+
+List voice calls across the account.
+
+Requires `read`.
+
+### POST /v1/voice/calls
+
+Place an account-level voice call.
+
+Requires `deploy`.
+
+## A2P registration
+
+A2P (application-to-person) registration is required by carriers before
+business messaging is allowed at scale.
+
+### GET /v1/a2p/brands
+
+List registered A2P brands.
+
+Requires `read`.
+
+### POST /v1/a2p/brands
+
+Register an A2P brand.
+
+Requires `admin`.
+
+### GET /v1/a2p/campaigns
+
+List A2P campaigns.
+
+Requires `read`.
+
+### POST /v1/a2p/campaigns
+
+Register an A2P campaign under a brand.
+
+Requires `admin`.
+
+### GET /v1/a2p/registrations
+
+List A2P registration records.
+
+Requires `read`.
+
+### POST /v1/a2p/registrations
+
+Submit an A2P registration.
+
+Requires `admin`.
+
+### GET /v1/a2p/registrations/:id
+
+Fetch one A2P registration by ID.
+
+Requires `read`.
+
+### GET /v1/a2p/registrations/:id/status
+
+Check the carrier-side status of an A2P registration.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/a2p/registrations/reg_77a1/status \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{ "id": "reg_77a1", "status": "pending", "stubbed": true }
+```

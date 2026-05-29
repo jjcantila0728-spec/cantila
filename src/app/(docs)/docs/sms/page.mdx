@@ -1,0 +1,110 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "SMS, Voice & Numbers",
+  description: "Cantila's telephony provider — outbound/inbound SMS, an OTP engine, voice, and a phone-number marketplace.",
+  path: "/docs/sms",
+  type: "article",
+});
+
+# SMS, Voice & Numbers
+
+A complete telephony provider: outbound SMS (API, bulk, scheduled,
+templates), an OTP/2FA engine, inbound SMS with two-way threading and
+SMS-to-app webhooks, outbound and inbound voice with routing / forwarding
+/ voicemail, plus a number marketplace and 10DLC/A2P carrier
+registration.
+
+<Badge tone="phase-3">SMS, Voice & Numbers — phase 3</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live today:** The full **API surface exists** and responds, backed by a `StubTelephonyProvider`. You can build and test against it.
+  - **Pending / preview:** **No real messages or calls are sent.** Carrier delivery is stubbed. The rollout order is: **outbound SMS lands first**, then **inbound SMS**, then **voice**. The number marketplace, port-in/transfer, and 10DLC/A2P registration follow.
+</Callout>
+
+<Note>
+  Treat this entire surface as **stubbed/preview**. Requests succeed and
+  return shaped responses, but nothing reaches a carrier yet.
+</Note>
+
+## Outbound SMS
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/send \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551234567", "body": "Your order shipped." }'
+```
+
+Supports bulk, scheduled sends, and templates. The project's number is
+auto-wired as `SMS_FROM` with `SMS_API_KEY`.
+
+## OTP / 2FA engine
+
+```bash
+# Request a one-time code
+curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/otp/request \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551234567" }'
+
+# Verify it
+curl -X POST https://api.cantila.app/v1/projects/proj_123/sms/otp/verify \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551234567", "code": "123456" }'
+```
+
+## Inbound SMS
+
+Inbound messages thread two-way and fire SMS-to-app webhooks:
+
+```bash
+curl https://api.cantila.app/v1/projects/proj_123/sms/inbound \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## Voice
+
+Outbound and inbound calls with routing, forwarding, and voicemail:
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/proj_123/voice/calls \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "+15551234567", "from": "+15557654321" }'
+```
+
+## Number marketplace
+
+Search inventory by country, area code, and type; each number carries a
+setup fee plus a monthly lease. Purchase, port-in, transfer, or release.
+
+```bash
+# Browse the catalog
+curl "https://api.cantila.app/v1/numbers/catalog?country=US&areaCode=415" \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+
+# List numbers you hold
+curl https://api.cantila.app/v1/numbers \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## A2P / 10DLC registration
+
+Carrier registration for application-to-person messaging lives under
+`/v1/a2p/*` (Phase 3, stubbed).
+
+## API reference
+
+| Method | Path                                | Status            | Notes                          |
+| ------ | ----------------------------------- | ----------------- | ------------------------------ |
+| `POST` | `/v1/projects/:id/sms/send`         | Stub (phase 3)    | Outbound SMS — lands first     |
+| `POST` | `/v1/projects/:id/sms/otp/request`  | Stub (phase 3)    | OTP request                    |
+| `POST` | `/v1/projects/:id/sms/otp/verify`   | Stub (phase 3)    | OTP verify                     |
+| `GET`  | `/v1/projects/:id/sms/inbound`      | Stub (phase 3)    | Inbound threading              |
+| `GET`  | `/v1/numbers`                       | Stub (phase 3)    | Numbers you hold               |
+| `GET`  | `/v1/numbers/catalog`               | Stub (phase 3)    | Marketplace inventory          |
+| `POST` | `/v1/projects/:id/voice/calls`      | Stub (phase 3)    | Outbound voice                 |
+| `*`    | `/v1/a2p/*`                         | Stub (phase 3)    | 10DLC / A2P registration       |
+
+See the [changelog](/changelog) for the per-feature live-delivery flip.

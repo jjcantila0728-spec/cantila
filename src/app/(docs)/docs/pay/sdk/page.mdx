@@ -1,0 +1,381 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Cantilapay SDK reference", description: "Full reference for @cantila/cantilapay: every resource, method, error type, idempotency behaviour, and enum.", path: "/docs/pay/sdk", type: "article" });
+
+# Cantilapay SDK reference <Badge tone="phase-2">phase-2</Badge>
+
+`@cantila/cantilapay` v0.1.0. Construct one client and access every
+resource as a property:
+
+```ts
+import { Cantilapay } from "@cantila/cantilapay";
+
+const cp = new Cantilapay(process.env.CANTILAPAY_SECRET_KEY!);
+```
+
+Every method accepts an **optional final `RequestOptions` argument**:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `idempotencyKey` | `string` | Override the auto-generated idempotency key. |
+| `noIdempotency` | `boolean` | Skip the idempotency key entirely. |
+| `timeoutMs` | `number` | Per-request timeout override. |
+
+<Note>
+All amounts are integer **minor units** (`1000` = $10.00). Every object
+carries a `mode` of `test` or `live` matching your API key.
+</Note>
+
+## Accounts
+
+Your Cantilapay account is the merchant-of-record account tied to the API
+key.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `accounts.retrieve()` | — | `Account` | The account for the current API key. |
+| `accounts.onboardingLink(input)` | `{ mode, country, returnUrl }` | `{ url, expiresAt }` | Hosted KYC link for the given mode. |
+
+```ts
+const account = await cp.accounts.retrieve();
+if (!account.testReady) {
+  const { url } = await cp.accounts.onboardingLink({
+    mode: "test",
+    country: "US",
+    returnUrl: "https://app.example.com/payments",
+  });
+  // redirect to `url`
+}
+```
+
+## Customers
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `customers.create(input)` | `{ externalRef?, email?, name?, description?, metadata? }` | `Customer` | Create a customer. |
+| `customers.retrieve(id)` | `id` | `Customer` | Fetch by id. |
+| `customers.list(params?)` | `{ limit? }` | `{ customers: Customer[] }` | List customers. |
+| `customers.update(id, input)` | `id`, `{ externalRef?, email?, name?, description?, metadata? }` | `Customer` | Update fields. |
+| `customers.del(id)` | `id` | `{ id, deleted }` | Delete a customer. |
+
+```ts
+const customer = await cp.customers.create({
+  email: "buyer@example.com",
+  name: "Ada Lovelace",
+  externalRef: "user_42",
+});
+```
+
+## Payment Intents
+
+The core charge object. Lifecycle is driven by `status` (see
+[enums](#enums)).
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `paymentIntents.create(input)` | `{ amount, currency, customerId?, paymentMethodId?, captureMode?, description?, metadata? }` | `PaymentIntent` | Create an intent. |
+| `paymentIntents.retrieve(id)` | `id` | `PaymentIntent` | Fetch by id. |
+| `paymentIntents.list(params?)` | `{ customerId?, limit? }` | `{ payment_intents: PaymentIntent[] }` | List intents. |
+| `paymentIntents.confirm(id, input?)` | `id`, `{ paymentMethodId? }?` | `PaymentIntent` | Confirm and attempt the charge. |
+| `paymentIntents.capture(id)` | `id` | `PaymentIntent` | Capture a `requires_capture` intent. |
+| `paymentIntents.cancel(id)` | `id` | `PaymentIntent` | Cancel an uncaptured intent. |
+
+```ts
+const intent = await cp.paymentIntents.create({
+  amount: 2500,
+  currency: "usd",
+  customerId: customer.id,
+  paymentMethodId: method.id,
+  captureMode: "manual", // capture later
+});
+const confirmed = await cp.paymentIntents.confirm(intent.id);
+if (confirmed.status === "requires_capture") {
+  await cp.paymentIntents.capture(intent.id);
+}
+```
+
+## Payment Methods
+
+A `pspToken` is a payment token captured client-side (e.g. from the Adyen
+Drop-in component).
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `paymentMethods.create(input)` | `{ pspToken, customerId?, metadata? }` | `PaymentMethod` | Tokenize and store a method. |
+| `paymentMethods.retrieve(id)` | `id` | `PaymentMethod` | Fetch by id. |
+| `paymentMethods.list(params?)` | `{ customerId?, limit? }` | `{ payment_methods: PaymentMethod[] }` | List methods. |
+| `paymentMethods.detach(id)` | `id` | `PaymentMethod` | Detach from its customer. |
+
+```ts
+const method = await cp.paymentMethods.create({
+  pspToken: "tok_from_dropin",
+  customerId: customer.id,
+});
+console.log(method.card?.brand, method.card?.last4);
+```
+
+## Subscriptions
+
+Recurring billing against a `Price`.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `subscriptions.create(input)` | `{ customerId, priceId, defaultPaymentMethodId?, trialPeriodDays?, metadata? }` | `Subscription` | Start a subscription. |
+| `subscriptions.retrieve(id)` | `id` | `Subscription` | Fetch by id. |
+| `subscriptions.list(params?)` | `{ customerId?, status?, limit? }` | `{ subscriptions: Subscription[] }` | List subscriptions. |
+| `subscriptions.update(id, input)` | `id`, `{ cancelAtPeriodEnd?, defaultPaymentMethodId?, metadata? }` | `Subscription` | Update a subscription. |
+| `subscriptions.cancel(id, input?)` | `id`, `{ atPeriodEnd? }?` | `Subscription` | Cancel now or at period end. |
+
+```ts
+const sub = await cp.subscriptions.create({
+  customerId: customer.id,
+  priceId: price.id,
+  defaultPaymentMethodId: method.id,
+  trialPeriodDays: 14,
+});
+// Cancel at the end of the current period instead of immediately:
+await cp.subscriptions.cancel(sub.id, { atPeriodEnd: true });
+```
+
+## Refunds
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `refunds.create(input)` | `{ paymentIntentId, amount?, reason? }` | `Refund` | Refund a charge (full or partial). |
+| `refunds.retrieve(id)` | `id` | `Refund` | Fetch by id. |
+| `refunds.list(params?)` | `{ paymentIntentId?, limit? }` | `{ refunds: Refund[] }` | List refunds. |
+
+```ts
+// Omit `amount` for a full refund.
+await cp.refunds.create({
+  paymentIntentId: intent.id,
+  amount: 500, // partial: $5.00
+  reason: "requested_by_customer",
+});
+```
+
+## Products
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `products.create(input)` | `{ name, description?, active?, metadata? }` | `Product` | Create a product. |
+| `products.retrieve(id)` | `id` | `Product` | Fetch by id. |
+| `products.list(params?)` | `{ active?, limit? }` | `{ products: Product[] }` | List products. |
+| `products.update(id, input)` | `id`, `{ name?, description?, active?, metadata? }` | `Product` | Update a product. |
+
+```ts
+const product = await cp.products.create({ name: "Pro Plan" });
+```
+
+## Prices
+
+A price attaches a recurring amount to a product.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `prices.create(input)` | `{ productId, unitAmount, currency, recurring: { interval, intervalCount?, trialPeriodDays? }, metadata? }` | `Price` | Create a price. |
+| `prices.retrieve(id)` | `id` | `Price` | Fetch by id. |
+| `prices.list(params?)` | `{ productId?, active?, limit? }` | `{ prices: Price[] }` | List prices. |
+
+```ts
+const price = await cp.prices.create({
+  productId: product.id,
+  unitAmount: 2900, // $29.00
+  currency: "usd",
+  recurring: { interval: "month", intervalCount: 1 },
+});
+```
+
+## Invoices
+
+Invoices are generated for subscription billing. You can read and resolve
+them, but not create them directly.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `invoices.retrieve(id)` | `id` | `Invoice` | Fetch by id. |
+| `invoices.list(params?)` | `{ customerId?, subscriptionId?, status?, limit? }` | `{ invoices: Invoice[] }` | List invoices. |
+| `invoices.voidInvoice(id)` | `id` | `Invoice` | Void an open invoice. |
+| `invoices.markUncollectible(id)` | `id` | `Invoice` | Mark as uncollectible. |
+
+```ts
+const { invoices } = await cp.invoices.list({
+  subscriptionId: sub.id,
+  status: "open",
+});
+```
+
+## Checkout Sessions
+
+A hosted or embedded checkout flow.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `checkoutSessions.create(input)` | `{ sessionMode, uiMode?, customerId?, successUrl, cancelUrl?, returnUrl?, currency, paymentItems?, subscriptionItems?, metadata? }` | `CheckoutSession` | Create a session. |
+| `checkoutSessions.retrieve(id)` | `id` | `CheckoutSession` | Fetch by id. |
+| `checkoutSessions.list(params?)` | `{ status?, limit? }` | `{ checkout_sessions: CheckoutSession[] }` | List sessions. |
+| `checkoutSessions.complete(id, input)` | `id`, `{ paymentMethodId }` | `CheckoutSession` | Complete an embedded session. |
+
+`sessionMode` is `payment | subscription | setup`; `uiMode` is
+`hosted | embedded`. `paymentItems` take `{ name, amount, currency,
+quantity? }`; `subscriptionItems` take `{ priceId, quantity? }`.
+
+```ts
+const session = await cp.checkoutSessions.create({
+  sessionMode: "payment",
+  uiMode: "hosted",
+  currency: "usd",
+  successUrl: "https://app.example.com/success",
+  cancelUrl: "https://app.example.com/cart",
+  paymentItems: [{ name: "T-shirt", amount: 1999, currency: "usd", quantity: 2 }],
+});
+// Redirect the buyer to `session.url`.
+```
+
+## Billing Portal
+
+A hosted session where customers manage their own subscriptions and
+payment methods.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `billingPortalSessions.create(input)` | `{ customerId, returnUrl? }` | `BillingPortalSession` | Create a portal session. |
+| `billingPortalSessions.retrieve(id)` | `id` | `BillingPortalSession` | Fetch by id. |
+
+```ts
+const portal = await cp.billingPortalSessions.create({
+  customerId: customer.id,
+  returnUrl: "https://app.example.com/account",
+});
+// Redirect to `portal.url`.
+```
+
+## Payouts
+
+Move available balance to your bank account.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `payouts.create(input?)` | `{ amount?, currency? }?` | `Payout` | Create a payout (omit `amount` to pay out all available). |
+| `payouts.retrieve(id)` | `id` | `Payout` | Fetch by id. |
+| `payouts.list(params?)` | `{ status?, limit? }` | `{ payouts: Payout[] }` | List payouts. |
+
+```ts
+await cp.payouts.create({ currency: "usd" }); // pay out all available USD
+```
+
+## Balance
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `balance.retrieve(params?)` | `{ currency? }?` | `Balance` | Available and pending balance. |
+| `balance.listTransactions(params?)` | `{ limit? }?` | `{ balance_transactions: BalanceTransaction[] }` | Ledger entries. |
+
+```ts
+const balance = await cp.balance.retrieve({ currency: "usd" });
+console.log(balance.available, balance.pending);
+```
+
+## Tax
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `tax.calculate(input)` | `{ amount, currency, customerCountry, customerState?, customerPostalCode?, productCategory? }` | `TaxCalculation` | Calculate tax for an amount. |
+| `tax.retrieve(id)` | `id` | `TaxCalculation` | Fetch a prior calculation. |
+
+```ts
+const calc = await cp.tax.calculate({
+  amount: 10000,
+  currency: "usd",
+  customerCountry: "US",
+  customerState: "CA",
+  customerPostalCode: "94016",
+});
+console.log(calc.taxAmount, calc.taxRateBps);
+```
+
+## Webhooks
+
+Verify inbound event signatures. See the [webhooks guide](../webhooks) for
+a full handler.
+
+| Method | Parameters | Returns | Description |
+| ------ | ---------- | ------- | ----------- |
+| `webhooks.verify(input)` | `{ rawBody, signatureHeader, signingSecret, toleranceSeconds? }` | `true` (throws on failure) | Validate a `Cantilapay-Signature` header. |
+
+```ts
+cp.webhooks.verify({
+  rawBody,
+  signatureHeader: req.headers["cantilapay-signature"],
+  signingSecret: process.env.CANTILAPAY_WEBHOOK_SECRET!,
+});
+```
+
+## Errors
+
+Every non-2xx response throws a `CantilapayError`:
+
+```ts
+import { Cantilapay, CantilapayError } from "@cantila/cantilapay";
+
+try {
+  await cp.paymentIntents.confirm("pi_xxx");
+} catch (err) {
+  if (err instanceof CantilapayError) {
+    console.error(err.status, err.type, err.code, err.message, err.param, err.requestId);
+  }
+}
+```
+
+`CantilapayError` fields:
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `status` | `number` | HTTP status (`0` for network/timeout). |
+| `type` | `CantilapayErrorType` | Error category (see below). |
+| `code` | `string` | Machine-readable code, e.g. `card_declined`. |
+| `message` | `string` | Human-readable message. |
+| `param` | `string?` | Offending parameter, when applicable. |
+| `requestId` | `string?` | Request id for support / log correlation. |
+
+Error `type` values:
+
+| Type | Meaning |
+| ---- | ------- |
+| `api_error` | Server-side, network, or timeout failure. |
+| `invalid_request_error` | Malformed request or bad parameters. |
+| `authentication_error` | Missing or invalid API key. |
+| `permission_error` | Key lacks permission for the action. |
+| `rate_limit_error` | Too many requests; back off and retry. |
+| `idempotency_error` | Idempotency key reused with a different payload. |
+| `card_error` | Card declined or otherwise unusable. |
+| `resource_missing` | Referenced object does not exist. |
+
+## Idempotency
+
+Mutating calls (`POST`, `PUT`, `PATCH`, `DELETE`) auto-attach a generated
+`Cantilapay-Idempotency-Key: auto_<hex>` header so retries never apply an
+operation twice. Control it per call via `RequestOptions`:
+
+```ts
+// Use your own key (recommended for important writes):
+await cp.paymentIntents.create(
+  { amount: 1000, currency: "usd" },
+  { idempotencyKey: "order-4821" },
+);
+
+// Skip idempotency entirely:
+await cp.customers.create({ email: "x@y.com" }, { noIdempotency: true });
+```
+
+Reusing a key with a *different* payload raises an `idempotency_error`. You
+can also disable the auto behaviour globally with `autoIdempotency: false`
+in the client options.
+
+## Enums
+
+| Enum | Values |
+| ---- | ------ |
+| `Mode` | `test`, `live` |
+| `PaymentIntentStatus` | `requires_payment_method`, `requires_confirmation`, `requires_action`, `processing`, `requires_capture`, `succeeded`, `canceled`, `failed` |
+| `SubscriptionStatus` | `incomplete`, `trialing`, `active`, `past_due`, `canceled`, `unpaid` |
+| `PriceInterval` | `day`, `week`, `month`, `year` |

@@ -1,0 +1,56 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Logs & metrics", description: "Stream build logs over SSE, read runtime logs, and pull project metrics.", path: "/docs/deploy/logs", type: "article" });
+
+# Logs & metrics
+
+Watch a deploy happen, read what your app is printing, and track how it's
+doing — all per project.
+
+## Streaming build logs (SSE)
+
+Deploys stream step-by-step events over Server-Sent Events as the
+[8-step pipeline](/docs/deploy/builds) runs:
+
+```bash
+curl -N -X POST https://api.cantila.app/v1/projects/PROJECT_ID/deploy/stream \
+  -H "Authorization: Bearer <api_key>"
+```
+
+The CLI streams by default — every `cantila deploy` shows the build live:
+
+```bash
+cantila deploy <projectId>
+```
+
+Disable the stream when you want a quiet, fire-and-forget deploy:
+
+```bash
+cantila deploy <projectId> --no-stream
+```
+
+## Runtime & build logs
+
+Read the project's runtime and build logs at any time:
+
+```bash
+curl https://api.cantila.app/v1/projects/PROJECT_ID/logs \
+  -H "Authorization: Bearer <api_key>"
+```
+
+## Metrics
+
+Pull project metrics:
+
+```bash
+curl https://api.cantila.app/v1/projects/PROJECT_ID/metrics \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Use metrics to decide when to [scale](/docs/deploy/scaling) or pin a
+project always-on.
+
+## Related
+
+- [Builds & the deploy pipeline](/docs/deploy/builds)
+- [Scaling](/docs/deploy/scaling)
+- [Rollbacks](/docs/deploy/rollbacks)

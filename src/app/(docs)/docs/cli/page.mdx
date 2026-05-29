@@ -1,23 +1,21 @@
 import { buildPageMetadata } from "@/lib/seo";
 export const metadata = buildPageMetadata({
   title: "The Cantila CLI",
-  description: "Install the cantila binary, log in, and ship — the zero-dep Node 20 wrapper over the public Cantila API.",
+  description: "Install the cantila binary, authenticate with an API key, and ship your first deploy — the zero-dependency Node 20 wrapper over the public Cantila API.",
   path: "/docs/cli",
   type: "article",
 });
 
 # The Cantila CLI
 
-`cantila` is the zero-dep Node 20 binary that wraps the public API. Same
-scoping as an API key. Same actions as the Console. Faster for everything
-once you know the verb.
+`cantila` is the zero-dependency Node 20 binary that wraps the public API.
+Same scoping as an API key. Same actions as the Console. Faster for
+everything once you know the verb.
 
 ## Install
 
 ```bash
-npm i -g @cantila/cli
-# or, no Node on the box:
-curl -fsSL https://get.cantila.app | sh
+npm i -g cantila-cli
 ```
 
 Verify:
@@ -26,98 +24,108 @@ Verify:
 cantila --version
 ```
 
-## Log in
+## Authenticate
+
+There is no interactive `login` command. The CLI authenticates with an API
+key, exactly like the public API.
+
+<Note>
+  Create a key in the Console, or mint one from the CLI itself once you have
+  a key with `admin` scope (or during first-run bootstrap).
+</Note>
+
+Mint a key, then save it to your config:
 
 ```bash
-cantila login
+cantila keys create my-laptop --scope deploy
+# → prints the raw key ONCE — copy it now
+cantila config set apiKey=ck_live_...
 ```
 
-This opens [console.cantila.app/cli](https://console.cantila.app/cli),
-mints an API key scoped to your account, and writes it to
-`~/.cantila/credentials`. The key never leaves your machine.
+The raw key is shown a single time on creation. After that only its prefix
+is ever displayed. Scopes are `read`, `deploy` (the default), and `admin`.
+
+Confirm who you are:
+
+```bash
+cantila whoami
+```
+
+This prints the Account and key the CLI is authenticated as.
+
+<Callout>
+  Prefer not to write the key to disk? Export `CANTILA_API_KEY` instead. Every
+  config value has an environment-variable override — see [CLI configuration](/docs/cli/config).
+</Callout>
 
 ## Shape
 
 ```text
-cantila <noun> [<verb>] [<target>] [--flags]
+cantila <command> [<subcommand>] [<target>] [--flags]
 ```
 
-The noun is a product or platform concept (`mail`, `sms`, `domain`,
-`project`, `deploy`, `env`, `logs`, `scale`, `agents`). The verb defaults
-to `list` when omitted.
+The first word is a command — a product or platform concept (`projects`,
+`deploy`, `env`, `logs`, `mail`, `sms`, `domain`, `agents`). Many commands
+take a subcommand (`env set`, `keys create`, `backups restore`); when omitted
+they default to listing.
 
-## Verb vocabulary
+## Ship your first deploy
 
-| Verb        | What                                            | Example                              |
-| ----------- | ----------------------------------------------- | ------------------------------------ |
-| `list`      | Show what exists.                               | `cantila projects`                   |
-| `create`    | Make a new thing.                               | `cantila create blog`                |
-| `deploy`    | Ship code.                                      | `cantila deploy blog`                |
-| `add`       | Attach an existing thing to a project.          | `cantila domain add blog example.com`|
-| `remove`    | Detach without deleting.                        | `cantila domain remove blog example.com` |
-| `delete`    | Permanent removal.                              | `cantila projects delete blog`       |
-| `open`      | Open a URL in the browser.                      | `cantila open blog`                  |
-| `status`    | Read state.                                     | `cantila status blog`                |
-| `logs`      | Stream logs (`-f` to follow).                   | `cantila logs blog -f`               |
-| `rollback`  | Return to a previous version.                   | `cantila rollback blog dep_xx9k`     |
-| `scale`     | Change resource sizing.                         | `cantila scale blog --vcpu 2`        |
-| `pause` / `resume` | Stop / start without delete.             | `cantila agents pause`               |
-
-## Common recipes
-
-### Ship a local folder
+### 1. Create a project
 
 ```bash
-cd my-app
-cantila deploy
+cantila create blog --runtime node --region fsn1
 ```
 
-Cantila zips, uploads, detects the stack, and prints the live URL.
+Runtime defaults to `node` and region to `fsn1`. Valid runtimes:
+`static`, `node`, `python`, `php`, `go`, `ruby`, `docker`. Valid regions:
+`fsn1`, `hel1`, `ash`. The command prints the new project id and its
+`{slug}.cantila.app` subdomain (live after the first deploy).
 
-### Stream logs in real time
+### 2. Deploy it
 
 ```bash
-cantila logs my-app -f
+cantila deploy <projectId>
 ```
 
-### Roll back to the previous deploy
+Deploys stream step-by-step by default. The CLI prints each build and
+provision step as it happens, then the live URL and any auto-wired env. Pass
+`--no-stream` for a single-shot wait instead.
+
+Deploy a pre-built image, or build and push one locally:
 
 ```bash
-cantila deploys my-app   # find the last green one
-cantila rollback my-app dep_abc123
+# image already in a registry
+cantila deploy <projectId> --image registry.example.com/blog:latest
+
+# build + push from a local Dockerfile, then deploy
+cantila deploy <projectId> --build . --registry registry.example.com/blog --tag v2
 ```
 
-### Bring an env var from your `.env`
+`--build` requires `--registry`; `--tag` and `--dockerfile` are optional.
+You cannot pass both `--image` and `--build`.
+
+### 3. Watch it
 
 ```bash
-cantila env set my-app < .env
+cantila logs <projectId>
+cantila status <projectId>
+cantila open <projectId>
 ```
 
-### Pause the agent swarm
+`logs` shows build and deploy logs, `status` reports services, domains and
+recent deploys, and `open` launches the project's primary URL in your browser.
 
-```bash
-cantila agents pause
-```
+## Where to next
 
-Useful when shipping a series of intentional changes you don't want the
-brain to second-guess.
+- [Command reference](/docs/cli/commands) — every command grouped by area.
+- [CLI configuration](/docs/cli/config) — the config file, env overrides, and
+  the `--as` sub-account flag.
 
 ## Output rules
 
-The CLI follows brand voice:
+The CLI follows the brand voice:
 
 - One line per event. No prose.
-- `✓` for success, `✗` for failure — that's it for emoji.
-- Errors state what happened then the recovery on the next line.
-
-## Configuration
-
-`~/.cantila/credentials` (one line, the API key) and `~/.cantila/config.yaml`:
-
-```yaml
-default_project: blog
-default_region: fsn1
-```
-
-Per-project overrides live in `cantila.json` at the repo root. See
-[push-to-deploy](/docs/deploy/git).
+- `✓` for success, `✗` for failure — that is it for emoji.
+- Errors state what happened, then the recovery on the next line.

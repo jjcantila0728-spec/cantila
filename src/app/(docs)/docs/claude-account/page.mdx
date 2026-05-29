@@ -1,0 +1,83 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Connect your Claude account",
+  description: "Link your claude.ai account so Cantila's Chat Deploy assistant reasons on your own Claude subscription — or use Cantila's built-in assistant instead.",
+  path: "/docs/claude-account",
+  type: "article",
+});
+
+# Connect your Claude account
+
+Cantila connects to Claude two ways. The [MCP server](/docs/mcp) lets
+Claude drive Cantila from the outside. This page is the other direction:
+linking your own claude.ai account so the [Chat Deploy](/docs/deploy/chat)
+assistant's reasoning runs on **your** Claude subscription instead of
+Cantila's.
+
+<Note>
+  Connecting an account is optional. Skip it and Chat Deploy keeps working
+  on Cantila's built-in assistant — see [the built-in assistant](#the-built-in-assistant)
+  below.
+</Note>
+
+## Why connect one
+
+The Chat Deploy assistant reasons about your project — detecting the
+stack, inferring environment variables, generating build configuration,
+running tool calls. That reasoning costs model tokens. You choose who pays
+for them:
+
+- **Connect your account** — the assistant runs on your claude.ai
+  subscription. Reasoning is billed by Anthropic against your plan, not by
+  Cantila.
+- **Don't connect one** — Cantila's built-in assistant handles the
+  reasoning, billed through platform usage credits on your Cantila bill.
+
+Either way the deploys, databases, domains, and the rest of the platform
+behave identically. The only difference is whose model does the thinking.
+
+## Connect via OAuth
+
+Open [Console → Settings](https://console.cantila.app/settings) and find
+**Claude account**. Choose **Connect**.
+
+1. Cantila redirects you to claude.ai's authorization screen.
+2. Review the access Cantila requests and approve.
+3. claude.ai sends you back to the Console. The status flips to
+   **Connected**.
+
+That's it — the next Chat Deploy thread reasons on your subscription. No
+key to copy or paste; the link is established by OAuth.
+
+<Callout>
+  Connecting your account changes only where the assistant's reasoning
+  runs. It does not give Cantila access to your Claude chat history or
+  any other claude.ai data.
+</Callout>
+
+## The built-in assistant
+
+If you never connect an account, Chat Deploy uses Cantila's built-in
+assistant. Nothing to set up — open
+[Console → Chat Deploy](https://console.cantila.app) and start a thread.
+The reasoning is billed as platform usage credits, which show up on your
+[billing page](/docs/billing) alongside compute and storage.
+
+This is the default. Connect an account later if and when you'd rather run
+on your own subscription — the switch takes effect on your next thread.
+
+## Revoke anytime
+
+The link is revocable. From
+[Console → Settings](https://console.cantila.app/settings) → **Claude
+account**, choose **Disconnect**. Cantila drops the connection and the
+Chat Deploy assistant falls back to the built-in assistant on your next
+thread. You can also revoke Cantila's access from your claude.ai account
+settings.
+
+## See also
+
+- [Cantila MCP server](/docs/mcp) — let Claude drive Cantila from Claude
+  Code, the Claude app, or Cowork.
+- [Cantila Deploy (chat)](/docs/deploy/chat) — the conversational front
+  door the assistant powers.

@@ -1,0 +1,91 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Teams: invites, members, roles",
+  description: "Invite teammates into your Cantila organization, manage members, and assign roles — the full team lifecycle from one place.",
+  path: "/docs/teams",
+  type: "article",
+});
+
+# Teams: invites, members, roles
+
+Bring teammates into your organization, give them the right role, and
+manage who has access — all from [Console → Team](https://console.cantila.app/team)
+or the API.
+
+A team is scoped to the organization you're currently in. See
+[Organizations](/docs/orgs) for how to switch between orgs.
+
+## Inviting a teammate
+
+From the Team page, send an invite by email. Cantila creates a pending
+invite and emails the recipient a link carrying a one-time token.
+
+```bash
+curl -X POST https://api.cantila.app/v1/invites \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "teammate@example.com", "role": "member" }'
+```
+
+The invitee opens the link, which resolves the token to the invite
+details, then accepts it:
+
+```bash
+# Look up an invite by its token
+curl https://api.cantila.app/v1/invites/by-token/<token> \
+  -H "Authorization: Bearer <api_key>"
+
+# Accept the invite
+curl -X POST https://api.cantila.app/v1/invites/accept \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "token": "<token>" }'
+```
+
+<Note>
+  An invite that hasn't been accepted yet shows as **pending** in the
+  Team page. List, resend, or revoke pending invites from `/v1/invites`.
+</Note>
+
+## Roles
+
+Each member carries a role that governs what they can do in the org.
+
+| Role     | Can do                                                       |
+| -------- | ------------------------------------------------------------ |
+| Owner    | Everything, including billing and deleting the org           |
+| Admin    | Manage members, invites, and resources                       |
+| Member   | Work with resources; no member or billing management         |
+
+Set the role when you invite, and change it later from the member's row.
+
+## Managing members
+
+List the current members of your org:
+
+```bash
+curl https://api.cantila.app/v1/team/members \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Update a member's role, or remove them from the org:
+
+```bash
+# Change a member's role
+curl -X PATCH https://api.cantila.app/v1/team/members/<id> \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{ "role": "admin" }'
+
+# Remove a member
+curl -X DELETE https://api.cantila.app/v1/team/members/<id> \
+  -H "Authorization: Bearer <api_key>"
+```
+
+Removing a member revokes their access to the org immediately. They keep
+their own Cantila account and any other orgs they belong to.
+
+<Callout tone="ember" title="Owners can't lock themselves out.">
+  Every org keeps at least one Owner. You can't remove or downgrade the
+  last remaining Owner — promote someone else first.
+</Callout>

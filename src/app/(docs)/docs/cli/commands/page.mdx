@@ -1,0 +1,148 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "CLI command reference",
+  description: "Every cantila command grouped by area — projects and deploys, env vars, API keys, backups, service groups, and account management.",
+  path: "/docs/cli/commands",
+  type: "article",
+});
+
+# CLI command reference
+
+Every `cantila` command, grouped by area. Run `cantila help` for the same set
+in your terminal, or `cantila <command>` with no subcommand to list whatever
+that command manages.
+
+<Note>
+  `deploy`, `projects`, `create`, `env`, `keys`, `config`, `backups` and
+  `whoami` are the fully fleshed-out core flows. Many service-group
+  subcommands mirror the public API and are filling in alongside their
+  products — descriptions below reflect each group's purpose.
+</Note>
+
+## Projects and deploys
+
+| Command | Purpose |
+| --- | --- |
+| `cantila projects` | List your projects (alias: `cantila ls`). |
+| `cantila create <name>` | Create a project. `--runtime static\|node\|python\|php\|go\|ruby\|docker` (default `node`), `--region fsn1\|hel1\|ash` (default `fsn1`). |
+| `cantila deploy <id>` | Deploy a project; streams steps live. `--no-stream` to wait. Image flags below. |
+| `cantila logs <id>` | Show build and deploy logs. |
+| `cantila status <id>` | Project status, services, domains and recent deploys. |
+| `cantila open <id>` | Open the project's primary URL in your browser. |
+| `cantila rollback <id> <deploy>` | Roll back to a previous deployment. |
+| `cantila scale <id>` | Resize: `--vcpu`, `--memory`, `--disk`, `--always-on`, `--instances`, `--min`, `--max`. |
+| `cantila instances <id>` | Per-instance health view. |
+| `cantila metrics <id>` | Recent CPU / MEM / RPS samples for a project. |
+| `cantila previews <id>` | List live preview deployments; `create <id> <branch>`, `destroy <id> <dpl>`. |
+| `cantila troubleshoot <id> <dpl>` | AI analysis of a failing deployment. |
+| `cantila git connect <id> <url>` | Connect a repo. Also `push`, `rotate-secret`, `disconnect`. |
+
+### Create a project
+
+```bash
+cantila create blog --runtime node --region fsn1
+```
+
+### Deploy
+
+```bash
+# default: deploy from git, streaming each step
+cantila deploy prj_abc123
+
+# deploy a pre-built image
+cantila deploy prj_abc123 --image registry.example.com/blog:latest
+
+# build + push a local Dockerfile, then deploy
+cantila deploy prj_abc123 --build . --registry registry.example.com/blog --tag v2 --dockerfile Dockerfile
+```
+
+`--build` requires `--registry`. Pass either `--image` or `--build`, not both.
+
+## Environment variables
+
+| Command | Purpose |
+| --- | --- |
+| `cantila env <id>` | List a project's environment variables. |
+| `cantila env set <id> KEY=VALUE` | Set a variable. `--public` disables masking; `--scope production\|preview\|all` (default `all`). |
+
+### Set an env var
+
+```bash
+# secret by default, applied to all scopes
+cantila env set prj_abc123 DATABASE_URL=postgres://...
+
+# a public (unmasked) value, production only
+cantila env set prj_abc123 PUBLIC_API_BASE=https://api.example.com --public --scope production
+```
+
+## API keys
+
+| Command | Purpose |
+| --- | --- |
+| `cantila keys list` | List API keys for the current account. |
+| `cantila keys create <name>` | Mint a new key. `--scope read\|deploy\|admin` (default `deploy`). |
+| `cantila keys revoke <id>` | Revoke an API key. |
+| `cantila whoami` | Show which account and key the CLI is authenticated as. |
+
+### Create a key
+
+```bash
+cantila keys create ci-pipeline --scope deploy
+```
+
+<Callout>
+  The raw key is printed once on creation. Copy it immediately — afterwards
+  only its prefix is shown. Save it with `cantila config set apiKey=<key>`.
+</Callout>
+
+## Backups
+
+| Command | Purpose |
+| --- | --- |
+| `cantila backups <id>` | List point-in-time backups (deployment + env-var snapshot). |
+| `cantila backups create <id>` | Capture a backup. `--note '<msg>'`. |
+| `cantila backups restore <id> <bak>` | Re-apply env vars and roll back to the captured deploy. |
+| `cantila backups delete <id> <bak>` | Drop a backup from history. |
+
+### Capture and restore
+
+```bash
+cantila backups create prj_abc123 --note "before the schema migration"
+cantila backups restore prj_abc123 bak_xyz789
+```
+
+## Service groups
+
+These commands mirror the public API for each Cantila product. Run a group
+with no subcommand to list, or `cantila help` for the current subcommands.
+
+| Command | Purpose |
+| --- | --- |
+| `cantila domain` | Search, buy, list and attach domains. |
+| `cantila aliases <id>` | Manage mail aliases on a project. |
+| `cantila databases` | List each project's auto-wired managed database. |
+| `cantila storage` | Manage S3-compatible object-storage buckets (alias: `cantila data`). |
+| `cantila mail` | Inbound mail, sending-IP pools and deliverability rollups. |
+| `cantila mailboxes <id>` | Manage hosted mailboxes on a project. |
+| `cantila sms` | Inbound SMS across your numbers. |
+| `cantila numbers` | Phone-number marketplace — search, buy, port-in, transfer. |
+| `cantila voice` | Inbound voice calls across your numbers. |
+| `cantila otp` | Issue and verify SMS one-time passcodes. |
+| `cantila a2p` | A2P / 10DLC carrier brand and campaign registrations. |
+| `cantila automations` | Automation instances (n8n / OpenClaw) and their workflows. |
+| `cantila connections` | Account-wide credential connections and the provider catalog. |
+| `cantila agents` | Cantila Agents brain — pending proposals, recent actions, `pause` / `resume`. |
+| `cantila nodes` | Enrolled compute nodes (Bring-Your-Own-VPS). |
+
+## Account and platform
+
+| Command | Purpose |
+| --- | --- |
+| `cantila accounts` | Show the account a key belongs to; provision tenants and sub-accounts. |
+| `cantila team` | List, add, re-role and remove members on the current account. |
+| `cantila invites` | Mint, list and revoke one-time invite links. |
+| `cantila orgs` | List, switch and leave the orgs you belong to. |
+| `cantila billing` | Plan, metered usage, recent charges, Stripe portal and dunning status. |
+| `cantila cost` | AI cost-optimiser recommendations. |
+| `cantila activity` | Recent events on the account. `--limit N`. |
+| `cantila config` | Show or set the CLI config. See [CLI configuration](/docs/cli/config). |

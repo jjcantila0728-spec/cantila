@@ -1,0 +1,72 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Builds & the deploy pipeline", description: "How Cantila detects your stack with Nixpacks, honors a custom Dockerfile, and runs the 8-step deploy pipeline.", path: "/docs/deploy/builds", type: "article" });
+
+# Builds & the deploy pipeline
+
+Every deploy — whether from [chat](/docs/deploy/chat),
+[git](/docs/deploy/git), or [upload](/docs/deploy/upload) — flows through
+the same build pipeline. Cantila figures out how to build your code,
+attaches your project's services, and ships an image.
+
+## Stack detection
+
+Cantila detects your stack automatically with **Nixpacks**: it inspects the
+files in your project and picks the right runtime and build steps. If your
+project includes a **Dockerfile**, Cantila honors it instead and builds the
+container exactly as defined — full control when you need it.
+
+## Supported runtimes
+
+| Runtime  | Detected from / use for                          |
+| -------- | ------------------------------------------------ |
+| `static` | Static sites and pre-built front-ends            |
+| `node`   | Node.js apps (Next.js, Express, and similar)     |
+| `python` | Python apps (FastAPI, Flask, Django)             |
+| `php`    | PHP applications                                 |
+| `go`     | Go services                                      |
+| `ruby`   | Ruby apps                                        |
+| `docker` | Any container — your `Dockerfile` is the source  |
+
+Set the runtime explicitly when creating a project:
+
+```bash
+cantila create my-app --runtime python --region fsn1
+```
+
+## The 8-step deploy pipeline
+
+Each deploy runs the same ordered pipeline. Before the build runs, Cantila
+auto-wires the project's managed database, mailbox, and SMS number and
+injects roughly eight connection secrets as environment variables, so your
+code can reach its services without any manual configuration.
+
+1. Receive the source (repo push, upload, or chat-assembled files)
+2. Auto-wire the project's DB, mailbox, and SMS number
+3. Inject the connection secrets as env vars
+4. Detect the stack with Nixpacks (or honor a `Dockerfile`)
+5. Build the image
+6. Publish the image
+7. Roll out the new deployment
+8. Promote it to live and expose the URL
+
+You watch this stream step by step — see
+[streaming build logs](/docs/deploy/logs).
+
+<Note>
+  Because the connection secrets are injected automatically, you don't set
+  <code>DATABASE_URL</code> and friends yourself. Add your own variables on
+  top — see <a href="/docs/deploy/env">env &amp; secrets</a>.
+</Note>
+
+## Build configuration
+
+For git projects, Cantila reads a `cantila.json` at the repo root when
+present, then falls back to `package.json` build scripts for Node, then to
+the detected stack's defaults. See
+[push-to-deploy](/docs/deploy/git) for an example `cantila.json`.
+
+## Related
+
+- [Env & secrets](/docs/deploy/env)
+- [Rollbacks](/docs/deploy/rollbacks)
+- [Scaling](/docs/deploy/scaling)

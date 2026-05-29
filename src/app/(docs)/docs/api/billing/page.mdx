@@ -1,0 +1,135 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Billing API", description: "Read billing summaries and invoices, open Stripe Checkout and Billing Portal sessions, preview and apply plan changes, and inspect dunning state.", path: "/docs/api/billing", type: "article" });
+
+# Billing API
+
+Cantila bills through Stripe — Stripe is the system of record. These
+endpoints read your billing state and open the Stripe-hosted surfaces
+for changes. All endpoints require auth; the mutating ones require
+`admin`.
+
+## Reading billing state
+
+### GET /v1/billing/summary
+
+Current subscription, plan, and the in-period metered estimate.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/billing/summary \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "plan": "pro",
+  "status": "active",
+  "currentPeriodEnd": "2026-06-28",
+  "estimate": { "currency": "USD", "amount": "41.20" }
+}
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### GET /v1/billing/info
+
+Billing configuration and capabilities for the account.
+
+Requires `read`.
+
+### GET /v1/billing/invoices
+
+List invoices, read server-side from Stripe.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/billing/invoices \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+```json
+{
+  "invoices": [
+    { "number": "CANT-0001", "status": "paid", "amount": "35.00", "hostedUrl": "https://invoice.stripe.com/..." }
+  ]
+}
+```
+
+### GET /v1/billing/dunning
+
+Current dunning state — `active`, `past_due`, `suspended`, or
+`canceled` — plus the recovery action when payment has failed.
+
+Requires `read`.
+
+## Checkout & portal
+
+### POST /v1/billing/checkout-session
+
+Create a Stripe Checkout session to start a subscription. Returns a URL
+(or client secret for embedded Checkout) to redirect the user to.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `plan` | string | The plan tier to subscribe to |
+
+```bash
+curl -X POST https://api.cantila.app/v1/billing/checkout-session \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "plan": "pro" }'
+```
+
+```json
+{ "url": "https://checkout.stripe.com/c/pay/cs_..." }
+```
+
+### POST /v1/billing/portal-session
+
+Create a Stripe Billing Portal session — where the customer changes
+card, cancels, or downloads prior invoices.
+
+Requires `admin`.
+
+```json
+{ "url": "https://billing.stripe.com/p/session/..." }
+```
+
+## Plan changes
+
+### POST /v1/billing/plan-change/preview
+
+Preview the exact proration of a plan change before applying it,
+Stripe-sourced and accurate to the cent including tax and credit
+balance.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `plan` | string | The target plan tier |
+
+```bash
+curl -X POST https://api.cantila.app/v1/billing/plan-change/preview \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "plan": "agency" }'
+```
+
+```json
+{ "plan": "agency", "prorationAmount": "18.42", "currency": "USD" }
+```
+
+### POST /v1/billing/plan-change
+
+Apply a plan change.
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `plan` | string | The target plan tier |

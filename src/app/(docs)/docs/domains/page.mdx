@@ -1,0 +1,86 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Domains",
+  description: "Attach a custom domain to your app with automatic DNS and SSL, or register one through Cantila's registrar.",
+  path: "/docs/domains",
+  type: "article",
+});
+
+# Domains
+
+Point a domain at your Cantila app and the platform auto-creates the DNS
+records, issues SSL, and configures email authentication. You can also
+search and register new domains across major TLDs at cheapest-in-market
+pricing.
+
+<Badge tone="live">Custom-domain attach + SSL — live</Badge>
+<Badge tone="phase-2">Registrar purchase flow — phase 2</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live:** Attaching a custom domain you already own as a project alias, with automatic DNS record creation and SSL issuance.
+  - **Phase 2 (pending):** The in-Cantila **registrar purchase flow** — search, register, transfer, and renew domains with billing. Search and quote endpoints exist; the buy/transfer/renew checkout is landing in Phase 2.
+</Callout>
+
+## Attach a custom domain (live)
+
+Add a domain as a project alias and Cantila configures everything to
+serve your app over HTTPS:
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/proj_123/aliases \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "domain": "app.example.com" }'
+```
+
+When you attach a domain, Cantila:
+
+1. Creates the DNS records that point the domain at the app.
+2. Issues and renews an SSL certificate automatically.
+3. Configures email authentication records (SPF / DKIM) for the sending domain.
+
+## Register a domain (phase 2)
+
+The registrar covers search, register, transfer, and renew across major
+TLDs, with **free WHOIS privacy** and cheapest-in-market pricing:
+
+| TLD    | Price (first year) |
+| ------ | ------------------ |
+| `.xyz` | $1.99              |
+| `.com` | $8.99              |
+| `.io`  | $29.99             |
+| `.ai`  | $49.99             |
+
+Search and quote are available; the purchase/transfer/renew checkout is
+Phase 2.
+
+```bash
+# Search availability across TLDs
+curl "https://api.cantila.app/v1/domains/search?q=acme" \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+```bash
+# Quote a specific domain
+curl "https://api.cantila.app/v1/domains/quote?domain=acme.io" \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+Once registered, Cantila auto-creates the records to point the domain at
+your app, issues SSL, and configures email auth — no manual DNS.
+
+## API reference
+
+| Method | Path                              | Status   | Notes                         |
+| ------ | --------------------------------- | -------- | ----------------------------- |
+| `GET`  | `/v1/domains/search`              | Live     | Availability search           |
+| `GET`  | `/v1/domains/quote`               | Live     | Price quote                   |
+| `POST` | `/v1/domains/registrations`       | Phase 2  | Register / transfer / renew   |
+| `GET`  | `/v1/projects/:id/aliases`        | Live     | List project aliases          |
+| `POST` | `/v1/projects/:id/aliases`        | Live     | Attach custom domain + SSL    |
+
+<Note>
+  Domains are a registrar product billed separately from the project. A
+  domain is retained when its project is deleted — your domain, your call.
+  Manage from **Console → Domains**.
+</Note>

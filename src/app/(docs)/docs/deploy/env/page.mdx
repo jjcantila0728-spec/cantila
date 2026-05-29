@@ -1,0 +1,85 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Environment variables & secrets", description: "Set env vars and secrets from the Console, CLI, or API, scope them per environment, and understand auto-wired secrets.", path: "/docs/deploy/env", type: "article" });
+
+# Environment variables & secrets
+
+Every project carries an environment: connection secrets Cantila wires in
+for you, plus whatever you add. Variables are available to your app at
+build and runtime.
+
+## From the CLI
+
+List the current variables:
+
+```bash
+cantila env <projectId>
+```
+
+Set a variable:
+
+```bash
+cantila env set <projectId> KEY=VALUE
+```
+
+Mark a non-secret (readable) variable as public:
+
+```bash
+cantila env set <projectId> NEXT_PUBLIC_API_URL=https://api.example.com --public
+```
+
+Scope a variable to one environment:
+
+```bash
+cantila env set <projectId> FEATURE_FLAG=on --scope preview
+```
+
+`--scope` accepts `production`, `preview`, or `all` (the default).
+
+## Public vs secret
+
+Variables are **write-only secrets by default**: you set them, but their
+values are not read back. Pass `--public` to mark a variable as a non-secret
+value — useful for things like public API URLs that are safe to expose and
+convenient to read.
+
+| Kind     | How to set            | Value readable back |
+| -------- | --------------------- | ------------------- |
+| Secret   | default               | No (write-only)     |
+| Public   | `--public`            | Yes                 |
+
+## Scopes
+
+| Scope        | Applies to                          |
+| ------------ | ----------------------------------- |
+| `production` | The live deployment                 |
+| `preview`    | [Preview deployments](/docs/deploy/previews) per branch |
+| `all`        | Every environment (default)         |
+
+## Auto-wired secrets
+
+You do not set the secrets for your project's managed services — Cantila
+injects them. Before each build, the [deploy pipeline](/docs/deploy/builds)
+auto-wires the project's database, mailbox, and SMS number and injects
+roughly eight connection secrets as env vars. Add your own variables on top.
+
+## API
+
+Read and write the project environment directly:
+
+```bash
+# List
+curl https://api.cantila.app/v1/projects/PROJECT_ID/env \
+  -H "Authorization: Bearer <api_key>"
+
+# Set
+curl -X POST https://api.cantila.app/v1/projects/PROJECT_ID/env \
+  -H "Authorization: Bearer <api_key>" \
+  -H "Content-Type: application/json" \
+  -d '{"key":"FEATURE_FLAG","value":"on","scope":"production"}'
+```
+
+## Related
+
+- [Builds & the deploy pipeline](/docs/deploy/builds)
+- [Preview environments](/docs/deploy/previews)
+- [Backups](/docs/deploy/backups) capture env vars in each snapshot

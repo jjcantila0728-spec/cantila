@@ -1,0 +1,83 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Mail",
+  description: "Cantila's first-party email provider — sending API, per-project SMTP credentials, sending domains, hosted mailboxes, and webmail.",
+  path: "/docs/mail",
+  type: "article",
+});
+
+# Mail
+
+Cantila's first-party email provider: a sending API, per-project SMTP
+credentials, sending domains, hosted mailboxes, webmail, inbound parsing,
+IMAP/POP3, and forwarding/aliases — auto-wired into every project.
+
+<Badge tone="phase-2">Mail — phase 2</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live today:** The mail **fleet**, **sending domains**, and **per-project SMTP credentials** are real and auto-wired into the project env. The **send API** (`POST /v1/projects/:id/mail/send`) records events. **Deliverability telemetry** (`/v1/mail/deliverability`) is live. The **webmail inbox** reads persisted inbound mail (`/v1/mail/inbox`).
+  - **Pending:** The actual **MTA/SMTP infrastructure** is not online — **no real bytes leave yet**. Sends run through a `StubMailProvider`. The live Mailcow adapter is infra-blocked on DNS / reverse-DNS / dedicated IPs / reputation warmup.
+</Callout>
+
+<Note>
+  Treat Mail as a **preview** until the MTA lands. You can build and test
+  against the full API surface — credentials, send calls, deliverability,
+  inbox — but a message sent today is recorded as an event, not delivered
+  to a real recipient.
+</Note>
+
+## What's auto-wired
+
+Every project receives a mailbox and per-project SMTP credentials in its
+environment as `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, and `SMTP_PASS`,
+plus a sending domain. These are real and managed by Cantila.
+
+## Sending mail
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/proj_123/mail/send \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "to": "user@example.com",
+    "from": "hello@yourproject.cantila.app",
+    "subject": "Welcome",
+    "html": "<p>Thanks for signing up.</p>"
+  }'
+```
+
+Today this **records a send event** — it does not put bytes on the wire.
+Once the MTA is online the same call delivers.
+
+## Deliverability telemetry
+
+```bash
+curl https://api.cantila.app/v1/mail/deliverability \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## Webmail inbox
+
+The webmail inbox reads persisted inbound mail:
+
+```bash
+curl https://api.cantila.app/v1/mail/inbox \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## API reference
+
+| Method | Path                            | Status               | Notes                                  |
+| ------ | ------------------------------- | -------------------- | -------------------------------------- |
+| `POST` | `/v1/projects/:id/mail/send`    | Live (records event) | No real delivery until MTA lands       |
+| `GET`  | `/v1/mail/deliverability`       | Live                 | Deliverability telemetry               |
+| `GET`  | `/v1/mail/inbox`                | Live                 | Reads persisted inbound mail           |
+| `GET`  | `/v1/mail/fleet`                | Live                 | Mail fleet                             |
+| `GET`  | `/v1/mailboxes`                 | Live                 | Hosted mailboxes                       |
+| `GET`  | `/v1/mail/aliases`              | Live                 | Forwarding / aliases                   |
+| `GET`  | `/v1/mail/info`                 | Live                 | Sending domain / config info           |
+
+Hosted mailboxes, webmail UI, inbound parsing, IMAP/POP3, and
+forwarding/aliases all sit behind the same Phase 2 MTA dependency for
+real send/receive. See the [changelog](/changelog) for the live-delivery
+flip.

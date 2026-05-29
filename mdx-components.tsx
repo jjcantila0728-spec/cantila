@@ -10,6 +10,31 @@ import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import { Info, AlertTriangle, Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
+import CodeBlock from "@/components/marketing/CodeBlock";
+
+/** Inline availability tag for honest phase badging on docs pages.
+ *  e.g. <Badge tone="phase-2">Phase 2 — sending is live, MTA pending</Badge> */
+function Badge({
+  tone = "live",
+  children,
+}: {
+  tone?: "live" | "phase-2" | "phase-3" | "beta";
+  children: ReactNode;
+}) {
+  const map = {
+    live: "border-live/30 bg-live/10 text-live-dim",
+    "phase-2": "border-warn/40 bg-warn/10 text-[#9a6b16]",
+    "phase-3": "border-info/40 bg-info/10 text-[#2f6fd0]",
+    beta: "border-violet/40 bg-violet/10 text-[#7c5cd6]",
+  } as const;
+  return (
+    <span
+      className={`not-prose mb-6 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-2xs font-medium uppercase tracking-cantila-kv ${map[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
 
 function Callout({
   tone = "info",
@@ -137,17 +162,9 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
         {...props}
       />
     ),
-    pre: ({ children, ...rest }) => (
-      // shiki has already syntax-highlighted the inner <code> at build time
-      // and added inline styles. We just provide the panel chrome around it,
-      // dark on light per brand/identity.md §3.4.
-      <pre
-        className="my-5 overflow-x-auto rounded-xl border border-border bg-bg p-4 text-[13px] leading-relaxed text-ink"
-        {...rest}
-      >
-        {children}
-      </pre>
-    ),
+    // shiki highlights the inner <code> at build time; CodeBlock adds the
+    // dark panel chrome + a copy-to-clipboard button (client component).
+    pre: (props) => <CodeBlock {...props} />,
     hr: () => <hr className="my-10 border-light-border-soft" />,
     table: (props) => (
       <div className="my-5 overflow-x-auto rounded-xl border border-light-border">
@@ -168,6 +185,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     ),
     Callout,
     Note,
+    Badge,
     ...components,
   };
 }

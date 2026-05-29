@@ -1,0 +1,90 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Core concepts",
+  description: "The control plane, Console, CLI, and data plane — plus projects, deployments, auto-wired services, and Cantila's phase model.",
+  path: "/docs/concepts",
+  type: "article",
+});
+
+# Core concepts
+
+Cantila is a hosting cloud you talk to. Drop in files — a zip, a folder, a
+repo — or describe what you want. Cantila detects the stack, builds it,
+deploys it, and hands back a live URL. This page names the parts so the
+rest of the docs make sense.
+
+## The four parts
+
+Cantila is three things you talk to, and one thing that runs your code.
+
+| Part | What it is |
+| --- | --- |
+| **Control plane** | The API, the MCP server, and the brain. It detects stacks, runs builds, wires services, and decides what happens. Reachable at `https://api.cantila.app/v1`. |
+| **Console** | The web dashboard at [console.cantila.app](https://console.cantila.app). Chat Deploy, project cards, activity feeds, domains, billing. |
+| **CLI** | The `cantila` binary. The same actions as the Console, from your terminal and your scripts. See [the Cantila CLI](/docs/cli). |
+| **Data plane** | The managed VPS fleet that runs your workloads as containers, across regions `fsn1`, `hel1`, and `ash`. You never touch a node directly. |
+
+You drive the control plane through the Console, the CLI, or — over MCP —
+through Claude. It does the rest on the data plane.
+
+## Projects
+
+A **project** is the core object in Cantila. It's one app: its code, its
+env, its auto-wired services, its domains, and its history of releases.
+Everything else hangs off a project.
+
+## Deployments
+
+A **deployment** is one build-and-release of a project — a single point in
+its history. Each new deployment supersedes the last one, so the project
+always points at exactly one live release.
+
+Because old deployments stick around, rollback is instant: select a
+previous deployment and it becomes live again. You never rebuild to go
+back.
+
+## Auto-wired services
+
+Every project is provisioned with its own managed services. Their
+connection strings and credentials are injected into the project's env as
+secrets **before the first build runs**, so your code can read them on day
+one.
+
+- **PostgreSQL** — a managed database per project, available today. The
+  connection string lands as `DATABASE_URL`.
+- **Mailbox + sending domain** — a project mailbox and a domain to send
+  from (Phase 2).
+- **SMS number** — a phone number for the project (Phase 3).
+
+See [auto-wired services](/docs/auto-wired) for the full list and the env
+keys each one sets.
+
+## Environments and domains
+
+Every project gets a free `<slug>.cantila.app` subdomain with SSL,
+provisioned automatically. That's where your first deploy goes live.
+
+You can attach **custom domains** too — DNS and SSL wire up for you. See
+[Cantila Domains](/products/domains).
+
+## The phase model
+
+Cantila ships in phases, and we're honest about the seams. Phase 1 is live
+today. Phases 2 and 3 are on the way. Here's what lands where.
+
+| Phase | What lands |
+| --- | --- |
+| **Phase 1** (live) | Deploy, custom domains, one managed Postgres per project, object storage, project templates, Stripe billing, the MCP server, the CLI, and Agents. |
+| **Phase 2** | Mail, a domains registrar, Automations + Connections, more databases per project, scaling and preview deployments, the full API, and monitoring. |
+| **Phase 3** | SMS / Voice / Numbers, white-label, microVM isolation, multi-region, and SSO. |
+
+When a feature in these docs depends on a later phase, it says so.
+
+## Where to next
+
+- [Quickstart](/docs/getting-started) — sign up and ship your first
+  project in five steps.
+- [Chat Deploy](/docs/deploy/chat) — turn intent or files into a running
+  deployment.
+- [The Cantila CLI](/docs/cli) — drive Cantila from your terminal.
+- [The API](/docs/api) — talk to the control plane directly.

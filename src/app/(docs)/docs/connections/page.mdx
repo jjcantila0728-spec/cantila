@@ -1,0 +1,61 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Connections",
+  description: "Account-wide integrations and credentials — connect a provider once and reuse it by id across workflows.",
+  path: "/docs/connections",
+  type: "article",
+});
+
+# Connections
+
+Account-wide integrations and credentials. Connect Gmail, Slack, Notion,
+Stripe, or OpenAI once, then reuse the connection by id across workflows.
+The credential stays in Cantila's secrets manager and is injected
+just-in-time at run time — never copied into a workflow definition.
+
+<Badge tone="phase-2">Connections — phase 2</Badge>
+
+<Callout tone="warn" title="What works today">
+  - **Live today:** **API-key and basic-auth providers**, plus **list + create**. You can store a credential and reference it by id.
+  - **Pending:** **OAuth start/callback** flows and the **~15-provider catalog** land later in Phase 2.
+</Callout>
+
+## Creating a connection
+
+```bash
+curl -X POST https://api.cantila.app/v1/connections \
+  -H "Authorization: Bearer $CANTILA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "openai",
+    "name": "prod-openai",
+    "auth": { "type": "api_key", "key": "sk-..." }
+  }'
+```
+
+```bash
+# List connections
+curl https://api.cantila.app/v1/connections \
+  -H "Authorization: Bearer $CANTILA_API_KEY"
+```
+
+## How credentials are used
+
+A connection is referenced by id from an [Automation](/docs/automations)
+step. At run time Cantila pulls the secret from its secrets manager and
+injects it just-in-time into the running step — the credential is never
+stored in the workflow itself.
+
+## API reference
+
+| Method | Path                  | Status   | Notes                              |
+| ------ | --------------------- | -------- | ---------------------------------- |
+| `GET`  | `/v1/connections`     | Live     | List connections                   |
+| `POST` | `/v1/connections`     | Live     | Create (API-key / basic today)     |
+| `*`    | `/v1/connections/*`   | Phase 2  | OAuth start/callback + catalog     |
+
+<Note>
+  OAuth-based providers (which need the start/callback dance) and the
+  broader provider catalog are Phase 2. Today, providers that authenticate
+  with an API key or basic credentials are fully usable.
+</Note>

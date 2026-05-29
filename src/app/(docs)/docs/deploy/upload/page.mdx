@@ -1,0 +1,61 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Deploy from a folder or zip", description: "Push a local directory or zip archive straight to Cantila from the Console or the CLI.", path: "/docs/deploy/upload", type: "article" });
+
+# Deploy from a folder or zip
+
+No repo, no chat — just ship the code you have. Upload a project directory
+or a zip archive and Cantila runs it through the same
+[8-step deploy pipeline](/docs/deploy/builds) as every other path: the
+project's database, mailbox, and SMS number are auto-wired and roughly
+eight connection secrets are injected as env vars before the build starts.
+
+## From the CLI
+
+The CLI packs your working directory, uploads it, and streams the build:
+
+```bash
+cantila deploy <projectId>
+```
+
+To deploy without the live log stream:
+
+```bash
+cantila deploy <projectId> --no-stream
+```
+
+If you don't have a project yet, create one first:
+
+```bash
+cantila create my-app --runtime node --region fsn1
+```
+
+Runtimes: `static`, `node`, `python`, `php`, `go`, `ruby`, `docker`.
+Regions: `fsn1`, `hel1`, `ash`. See [builds](/docs/deploy/builds) for how
+the stack is detected once your files land.
+
+## From the Console
+
+In the project, open the deploy panel and drop a folder or a `.zip` of the
+project directory. Cantila uploads it, detects the stack with
+[Nixpacks](/docs/deploy/builds) (or honors a `Dockerfile` if present),
+builds, and hands back a URL. Progress streams step by step.
+
+## When to use upload vs chat vs git
+
+| Path                              | Best for                                              |
+| --------------------------------- | ----------------------------------------------------- |
+| **Upload** (this page)            | Local code with no repo; one-off or CI-driven pushes  |
+| [Chat Deploy](/docs/deploy/chat)  | First deploy, scaffolding from a prompt, iterating    |
+| [Push-to-deploy](/docs/deploy/git)| An active repo where every push and PR should ship    |
+
+<Callout tone="info" title="Same pipeline, every path.">
+  Upload, chat, and git all converge on one deploy pipeline. Whatever you
+  start with, your project gets the same auto-wired services and the same
+  build, logs, rollback, and backup behavior.
+</Callout>
+
+## Next steps
+
+- Configure [environment variables & secrets](/docs/deploy/env)
+- Watch [streaming build logs](/docs/deploy/logs)
+- [Roll back](/docs/deploy/rollbacks) if a deploy goes bad

@@ -1,0 +1,75 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({
+  title: "Agents",
+  description: "Cantila's self-healing brain and agent swarm — auto-applies safe fixes on a 60s tick and waits for confirmation on destructive ones.",
+  path: "/docs/agents",
+  type: "article",
+});
+
+# Agents
+
+Cantila's self-healing brain runs an agent swarm over your projects on a
+60-second tick. High-confidence, safe actions auto-apply; destructive ones
+wait for your confirmation. Every action is logged, and a learning loop
+keeps the system honest over time.
+
+## The swarm
+
+Eight specialized agents run on each tick:
+
+| Agent     | Watches                                   |
+| --------- | ----------------------------------------- |
+| Uptime    | Health checks, restarts, rollbacks        |
+| Deploy    | Build / release health                    |
+| Cost      | Spend anomalies and waste                 |
+| Scale     | Right-sizing replicas                     |
+| Security  | Exposure and credential hygiene           |
+| Capacity  | Headroom on shared resources              |
+| Mail      | Sending health / deliverability           |
+| SMS       | Telephony health                          |
+
+## What auto-applies vs. waits
+
+- **Auto-apply (high-confidence, safe):** rollback a bad deploy, scale
+  down idle capacity, sleep an idle project.
+- **Waits for confirmation:** anything destructive surfaces as a proposal
+  you approve.
+
+Every action — auto-applied or proposed — appears in the activity feed at
+`/v1/activity`.
+
+## Trust over time
+
+A **learning loop** downgrades confidence for action kinds with a bad
+track record, so a class of fix that has caused problems before stops
+auto-applying. **Post-checks** verify auto-applied actions and flag
+regressions.
+
+## Pausing
+
+Pause the swarm at any time:
+
+```bash
+cantila agents pause
+```
+
+Resume when you're ready:
+
+```bash
+cantila agents resume
+```
+
+## API reference
+
+| Method | Path                     | Notes                          |
+| ------ | ------------------------ | ------------------------------ |
+| `GET`  | `/v1/agents/status`      | Current swarm status           |
+| `POST` | `/v1/agents/pause`       | Pause auto-apply               |
+| `POST` | `/v1/agents/resume`      | Resume                         |
+| `GET`  | `/v1/agents/proposals`   | Pending proposals to confirm   |
+| `GET`  | `/v1/activity`           | Full action log                |
+
+## MCP & Console
+
+- **MCP:** `cantila_agents_status`
+- **Console:** [`/agents`](/agents)

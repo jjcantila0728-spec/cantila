@@ -1,0 +1,163 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Mail API", description: "Send and receive mail, manage mailboxes, aliases, and sending pools, and read fleet deliverability — the Cantila mail control-plane API.", path: "/docs/api/mail", type: "article" });
+
+# Mail API
+
+<Badge tone="phase-2">Phase 2 — endpoints live, real delivery pending</Badge>
+
+The mail surface is wired end-to-end through these endpoints. The
+sending path currently runs through a stub adapter, so
+`POST .../mail/send` is accepted and recorded but does **not** put real
+bytes on the wire until the MTA ships. Inbox, fleet, and deliverability
+reads return representative data in the meantime. All endpoints require
+auth.
+
+<Callout tone="warn" title="Sending is stubbed.">
+  Calls to send mail succeed and appear in the activity audit, but no
+  message is actually delivered yet. Build against the shapes now; real
+  delivery turns on with Phase 2.
+</Callout>
+
+## Project mail
+
+### POST /v1/projects/:id/mail/send
+
+Send a message from a project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `to` | string | Recipient address |
+| `from` | string | Sender address (must be a verified project sender) |
+| `subject` | string | Subject line |
+| `text` / `html` | string | Message body |
+
+```bash
+curl -X POST https://api.cantila.app/v1/projects/prj_a1b2/mail/send \
+  -H "Authorization: Bearer sk_live_xxxx" \
+  -H "Content-Type: application/json" \
+  -d '{ "to": "user@example.com", "from": "hello@yourapp.com", "subject": "Hi", "text": "Welcome." }'
+```
+
+```json
+{ "id": "msg_4f10", "status": "accepted", "stubbed": true }
+```
+
+<Note>Response shapes on this page are representative.</Note>
+
+### GET /v1/projects/:id/mail/inbox
+
+Read the project's received mail.
+
+Requires `read`.
+
+### POST /v1/projects/:id/mail/inbound
+
+Inbound webhook endpoint that receives mail addressed to the project.
+Called by the mail pipeline, not by API-key clients.
+
+### GET /v1/projects/:id/mailboxes
+
+List the mailboxes on a project.
+
+Requires `read`.
+
+### POST /v1/projects/:id/mailboxes
+
+Create a mailbox on a project.
+
+Requires `deploy`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `address` | string | The mailbox address to create |
+
+## Fleet & deliverability
+
+### GET /v1/mail/fleet
+
+Account-wide view of mail-sending domains and their state.
+
+Requires `read`.
+
+```bash
+curl https://api.cantila.app/v1/mail/fleet \
+  -H "Authorization: Bearer sk_live_xxxx"
+```
+
+### GET /v1/mail/inbox
+
+Account-level aggregated inbox across projects.
+
+Requires `read`.
+
+### GET /v1/mail/deliverability
+
+Deliverability signals — SPF/DKIM/DMARC alignment, bounce and complaint
+rates — across the account.
+
+Requires `read`.
+
+### GET /v1/mail/info
+
+Mail subsystem status and capabilities.
+
+Requires `read`.
+
+## Mailboxes & aliases
+
+### GET /v1/mailboxes
+
+List all mailboxes in the account.
+
+Requires `read`.
+
+### POST /v1/mailboxes
+
+Create an account-level mailbox.
+
+Requires `admin`.
+
+### GET /v1/mail/aliases
+
+List mail aliases.
+
+Requires `read`.
+
+### POST /v1/mail/aliases
+
+Create a mail alias (forwarding address).
+
+Requires `admin`.
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `alias` | string | The alias address |
+| `target` | string | Where it forwards |
+
+## Sending pools
+
+### GET /v1/mail/pools
+
+List sending pools (IP / domain groupings for reputation isolation).
+
+Requires `read`.
+
+### POST /v1/mail/pools
+
+Create a sending pool.
+
+Requires `admin`.
+
+### GET /v1/mail/pools/:id
+
+Fetch one sending pool by ID.
+
+Requires `read`.
+
+### GET /v1/mail/pool-deliverability
+
+Deliverability metrics broken down per sending pool.
+
+Requires `read`.

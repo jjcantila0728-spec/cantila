@@ -18,6 +18,8 @@ import { ChevronRight, Home } from "lucide-react";
 import MarketingHeader from "@/components/marketing/MarketingHeader";
 import MarketingFooter from "@/components/marketing/MarketingFooter";
 import DocsSidebar from "@/components/marketing/DocsSidebar";
+import DocsSearch from "@/components/marketing/DocsSearch";
+import OnThisPage from "@/components/marketing/OnThisPage";
 import Breadcrumbs from "@/components/marketing/Breadcrumbs";
 import JsonLd from "@/components/JsonLd";
 import { FLAT_DOCS } from "@/data/docs-nav";
@@ -72,10 +74,10 @@ export default function DocsLayout({
       </a>
       <JsonLd payload={payloads} />
       <MarketingHeader />
-      <div className="mx-auto w-full max-w-[1280px] px-4 pb-16 pt-8 sm:px-6 lg:px-9">
-        <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-10">
+      <div className="mx-auto w-full max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:px-9">
+        <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[220px_minmax(0,1fr)_200px]">
           <aside className="hidden lg:block">
-            <div className="sticky top-24">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-8">
               <Link
                 href="/"
                 className="mb-4 inline-flex items-center gap-1 text-2xs text-light-ink-faint hover:text-light-ink"
@@ -84,14 +86,21 @@ export default function DocsLayout({
                 Back to cantila.app
                 <ChevronRight className="h-3 w-3" />
               </Link>
+              <DocsSearch />
               <DocsSidebar />
             </div>
           </aside>
 
-          <article id="docs-content" className="max-w-[760px]">
+          <article id="docs-content" className="min-w-0 max-w-[760px]">
             <Breadcrumbs trail={breadcrumb} />
             {children}
           </article>
+
+          <aside className="hidden xl:block">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-8">
+              <OnThisPage />
+            </div>
+          </aside>
         </div>
       </div>
       <MarketingFooter />

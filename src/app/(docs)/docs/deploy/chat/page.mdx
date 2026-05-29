@@ -68,7 +68,9 @@ and is reversible.
 | `Cargo.toml`                      | Rust                       |
 | `Dockerfile`                      | Containerised, your call   |
 
-If detection misses, drop a `Dockerfile` and Cantila uses it.
+Detection runs through Nixpacks; if it misses, drop a `Dockerfile` and
+Cantila honors it. See [builds & the deploy pipeline](/docs/deploy/builds)
+for the full runtime list and the 8-step pipeline every deploy runs.
 
 ## What "auto-wired" means
 

@@ -1,0 +1,55 @@
+import { buildPageMetadata } from "@/lib/seo";
+export const metadata = buildPageMetadata({ title: "Deployments & instant rollback", description: "Every deploy is a versioned deployment you can instantly roll back to from the Console, CLI, or MCP — no rebuild.", path: "/docs/deploy/rollbacks", type: "article" });
+
+# Deployments & instant rollback
+
+Each build produces a **deployment**: a versioned, immutable image plus the
+environment it ran with. The most recent successful deployment is live; the
+rest stay available to roll back to.
+
+## Instant rollback
+
+Rolling back **reuses the prior image** and supersedes the current live
+deployment — there's no rebuild, so it's near-instant. Pick a known-good
+deployment and Cantila promotes it back to live.
+
+### CLI
+
+```bash
+cantila rollback <projectId> <deployId>
+```
+
+### Console
+
+Open **Project → Deploys**, find the deployment you want, and choose
+**Roll back**. The selected deployment becomes live.
+
+### MCP
+
+Agents and assistants connected over MCP can roll back with the
+`cantila_rollback` tool, passing the project and target deployment.
+
+## How it works
+
+```text
+deploy A  (older)
+deploy B  (older)
+deploy C  ← current live
+        rollback to B
+deploy B  ← now live again (image reused, no rebuild)
+```
+
+Because the image already exists, rollback skips the entire
+[build pipeline](/docs/deploy/builds) and only re-promotes.
+
+<Callout tone="info" title="Restore reuses rollback.">
+  Restoring a <a href="/docs/deploy/backups">backup</a> uses the same
+  rollback mechanism under the hood — it re-promotes the snapshot's
+  recorded deployment.
+</Callout>
+
+## Related
+
+- [Builds & the deploy pipeline](/docs/deploy/builds)
+- [Backups & restore](/docs/deploy/backups)
+- [Logs & metrics](/docs/deploy/logs)
