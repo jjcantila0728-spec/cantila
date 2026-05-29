@@ -115,7 +115,7 @@ export default function MonitoringView() {
 
     async function load() {
       try {
-        const snap = await api.getMonitoring("acc_demo", first);
+        const snap = await api.getMonitoring(undefined, first);
         first = false;
         if (cancelled) return;
         setSnapshotAt(snap.at);

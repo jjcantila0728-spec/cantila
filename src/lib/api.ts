@@ -220,9 +220,11 @@ export const api = {
   health: () =>
     request<{ status: string; service: string; time: string }>("/health"),
 
-  listProjects: (accountId = "acc_demo") =>
+  listProjects: (accountId?: string) =>
     request<{ projects: ApiProject[] }>(
-      `/projects?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/projects?accountId=${encodeURIComponent(accountId)}`
+        : `/projects`,
     ),
 
   createProject: (input: {
@@ -401,9 +403,11 @@ export const api = {
       { method: "POST", body: JSON.stringify(input) },
     ),
 
-  listApiKeys: (accountId = "acc_demo") =>
+  listApiKeys: (accountId?: string) =>
     request<{ keys: ApiKeySummary[] }>(
-      `/api-keys?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/api-keys?accountId=${encodeURIComponent(accountId)}`
+        : `/api-keys`,
     ),
 
   createApiKey: (input: {
@@ -413,7 +417,7 @@ export const api = {
   }) =>
     request<{ key: ApiKeySummary; rawKey: string }>("/api-keys", {
       method: "POST",
-      body: JSON.stringify({ accountId: "acc_demo", ...input }),
+      body: JSON.stringify({ ...input }),
     }),
 
   revokeApiKey: (id: string) =>
@@ -557,13 +561,15 @@ export const api = {
       "/domains/registrations",
       {
         method: "POST",
-        body: JSON.stringify({ accountId: "acc_demo", ...input }),
+        body: JSON.stringify({ ...input }),
       },
     ),
 
-  listRegistrations: (accountId = "acc_demo") =>
+  listRegistrations: (accountId?: string) =>
     request<{ registrations: DomainRegistration[] }>(
-      `/domains/registrations?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/domains/registrations?accountId=${encodeURIComponent(accountId)}`
+        : `/domains/registrations`,
     ),
 
   attachRegistration: (registrationId: string, projectId: string) =>
@@ -574,14 +580,18 @@ export const api = {
 
   /* ----- Cantila Data (plan §4.6) ----- */
 
-  listAccountDatabases: (accountId = "acc_demo") =>
+  listAccountDatabases: (accountId?: string) =>
     request<{ databases: AccountManagedDatabase[] }>(
-      `/databases?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/databases?accountId=${encodeURIComponent(accountId)}`
+        : `/databases`,
     ),
 
-  listBuckets: (accountId = "acc_demo") =>
+  listBuckets: (accountId?: string) =>
     request<{ buckets: ApiStorageBucket[] }>(
-      `/storage/buckets?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/storage/buckets?accountId=${encodeURIComponent(accountId)}`
+        : `/storage/buckets`,
     ),
 
   createBucket: (input: {
@@ -602,9 +612,11 @@ export const api = {
 
   /* ----- hosted mailboxes (plan §4.4 — Cantila Mail) ----- */
 
-  listHostedMailboxes: (accountId = "acc_demo") =>
+  listHostedMailboxes: (accountId?: string) =>
     request<{ mailboxes: ApiHostedMailbox[] }>(
-      `/mailboxes?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/mailboxes?accountId=${encodeURIComponent(accountId)}`
+        : `/mailboxes`,
     ),
 
   listProjectHostedMailboxes: (projectId: string) =>
@@ -677,9 +689,11 @@ export const api = {
       { method: "DELETE" },
     ),
 
-  listActivity: (accountId = "acc_demo", limit = 100) =>
+  listActivity: (accountId?: string, limit = 100) =>
     request<{ events: ApiActivityEvent[] }>(
-      `/activity?accountId=${encodeURIComponent(accountId)}&limit=${limit}`,
+      accountId
+        ? `/activity?accountId=${encodeURIComponent(accountId)}&limit=${limit}`
+        : `/activity?limit=${limit}`,
     ),
 
   /* ----- A2P/10DLC registrations (plan §4.5) ----- */
@@ -721,14 +735,18 @@ export const api = {
       { method: "PATCH", body: JSON.stringify(input) },
     ),
 
-  getMonitoring: (accountId = "acc_demo", fresh = false) =>
+  getMonitoring: (accountId?: string, fresh = false) =>
     request<ApiMonitoringSnapshot>(
-      `/monitoring?accountId=${encodeURIComponent(accountId)}${fresh ? "&fresh=1" : ""}`,
+      accountId
+        ? `/monitoring?accountId=${encodeURIComponent(accountId)}${fresh ? "&fresh=1" : ""}`
+        : `/monitoring${fresh ? "?fresh=1" : ""}`,
     ),
 
-  getBillingSummary: (accountId = "acc_demo") =>
+  getBillingSummary: (accountId?: string) =>
     request<ApiBillingSummary>(
-      `/billing/summary?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/billing/summary?accountId=${encodeURIComponent(accountId)}`
+        : `/billing/summary`,
     ),
 
   /** Real Stripe invoice history — finalised invoices with Stripe-hosted
@@ -736,9 +754,11 @@ export const api = {
   getBillingInvoices: () =>
     request<{ invoices: ApiBillingInvoice[] }>(`/billing/invoices`),
 
-  getCostOptimisation: (accountId = "acc_demo") =>
+  getCostOptimisation: (accountId?: string) =>
     request<ApiCostOptimisationReport>(
-      `/cost/optimise?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/cost/optimise?accountId=${encodeURIComponent(accountId)}`
+        : `/cost/optimise`,
     ),
 
   createCheckoutSession: (input: {
@@ -820,9 +840,11 @@ export const api = {
   listAgentProposals: () =>
     request<{ proposals: ApiAgentProposalRow[] }>("/agents/proposals"),
 
-  getCapacity: (accountId = "acc_demo") =>
+  getCapacity: (accountId?: string) =>
     request<ApiCapacityRollup>(
-      `/capacity?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/capacity?accountId=${encodeURIComponent(accountId)}`
+        : `/capacity`,
     ),
 
   /* compute nodes — Bring-Your-Own-VPS (plan §5.5) */
@@ -859,15 +881,21 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
-  getMailFleet: (accountId = "acc_demo") =>
+  getMailFleet: (accountId?: string) =>
     request<{
       mailboxes: ApiMailboxRow[];
       sendingDomains: { domain: string; mailboxes: number; projects: string[] }[];
-    }>(`/mail/fleet?accountId=${encodeURIComponent(accountId)}`),
+    }>(
+      accountId
+        ? `/mail/fleet?accountId=${encodeURIComponent(accountId)}`
+        : `/mail/fleet`,
+    ),
 
-  getSmsFleet: (accountId = "acc_demo") =>
+  getSmsFleet: (accountId?: string) =>
     request<{ numbers: ApiPhoneNumberRow[] }>(
-      `/sms/fleet?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/sms/fleet?accountId=${encodeURIComponent(accountId)}`
+        : `/sms/fleet`,
     ),
 
   /** Account-wide SMS OTP / 2FA rollup (plan §4.5 / §15.2). */
@@ -1003,9 +1031,11 @@ export const api = {
       { method: "POST", body: JSON.stringify({}) },
     ),
 
-  listMembers: (accountId = "acc_demo") =>
+  listMembers: (accountId?: string) =>
     request<{ members: ApiTeamMember[] }>(
-      `/team/members?accountId=${encodeURIComponent(accountId)}`,
+      accountId
+        ? `/team/members?accountId=${encodeURIComponent(accountId)}`
+        : `/team/members`,
     ),
 
   addMember: (input: {
@@ -1016,7 +1046,7 @@ export const api = {
   }) =>
     request<ApiTeamMember>("/team/members", {
       method: "POST",
-      body: JSON.stringify({ accountId: "acc_demo", ...input }),
+      body: JSON.stringify({ ...input }),
     }),
 
   updateMemberRole: (membershipId: string, role: ApiMemberRole) =>
