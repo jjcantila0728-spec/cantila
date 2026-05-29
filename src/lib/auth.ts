@@ -113,3 +113,122 @@ export async function fetchSsoInfo(): Promise<{
   }
   return { label: "SSO", live: false };
 }
+
+/* ============================================================
+   OAuth (Google / GitHub) redirect-flow helpers.
+
+   The Console drives a browser redirect round-trip whose callback
+   lands on the apex (/auth/callback/[provider]) so it can set the
+   session cookie. A short-lived httpOnly state cookie carries the
+   OAuth `state`, the originating `from` path, and the provider id
+   between /login and the callback to guard against login-CSRF.
+   ============================================================ */
+
+/** Short-lived cookie carrying the OAuth `state`, the originating
+ *  `from` path, and the provider id between /login and the callback.
+ *  httpOnly + 10-minute lifetime; cleared on callback. */
+export const OAUTH_STATE_COOKIE = "cantila_oauth_state";
+
+/** The public origin the OAuth callback is registered under. Mirrors the
+ *  apex host the middleware serves the auth pages on. */
+function oauthBaseUrl(): string {
+  return (
+    process.env.CANTILA_PUBLIC_ORIGIN ??
+    (process.env.NODE_ENV === "production"
+      ? "https://cantila.app"
+      : "http://localhost:3000")
+  );
+}
+
+/** Begin an OAuth login: ask the control plane for the authorize URL,
+ *  stash {state, from, provider} in an httpOnly cookie, and return the
+ *  URL the caller should redirect the browser to. Returns null on
+ *  failure (caller redirects back with an error). */
+export async function beginOauth(
+  provider: "google" | "github",
+  from: string,
+): Promise<string | null> {
+  const redirectUri = `${oauthBaseUrl()}/auth/callback/${provider}`;
+  let authorizeUrl: string;
+  let state: string;
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/start`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ provider, redirectUri }),
+      cache: "no-store",
+    });
+    const data = (await res.json().catch(() => null)) as {
+      authorizeUrl?: string;
+      state?: string;
+    } | null;
+    if (!res.ok || !data?.authorizeUrl || !data?.state) return null;
+    authorizeUrl = data.authorizeUrl;
+    state = data.state;
+  } catch {
+    return null;
+  }
+  cookies().set(
+    OAUTH_STATE_COOKIE,
+    JSON.stringify({ state, from, provider }),
+    {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 600,
+      domain: COOKIE_DOMAIN,
+    },
+  );
+  return authorizeUrl;
+}
+
+/** Validate and consume the state cookie on callback. Returns the stored
+ *  {from, provider} when `presentedState` matches, else null. Always
+ *  clears the cookie. */
+export function consumeOauthState(
+  presentedState: string | undefined,
+): { from: string; provider: string } | null {
+  const raw = cookies().get(OAUTH_STATE_COOKIE)?.value;
+  cookies().delete(OAUTH_STATE_COOKIE);
+  if (!raw || !presentedState) return null;
+  try {
+    const parsed = JSON.parse(raw) as {
+      state?: string;
+      from?: string;
+      provider?: string;
+    };
+    if (!parsed.state || parsed.state !== presentedState) return null;
+    return {
+      from: typeof parsed.from === "string" ? parsed.from : "/dashboard",
+      provider: parsed.provider ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch the configured providers so the buttons reflect what is wired.
+ *  Never throws. */
+export async function fetchOauthProviders(): Promise<
+  Array<{ id: string; label: string; live: boolean }>
+> {
+  try {
+    const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/info`, {
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const info = (await res.json()) as { providers?: unknown };
+      if (Array.isArray(info.providers)) {
+        return info.providers as Array<{
+          id: string;
+          label: string;
+          live: boolean;
+        }>;
+      }
+    }
+  } catch {
+    /* control plane unreachable */
+  }
+  return [];
+}
