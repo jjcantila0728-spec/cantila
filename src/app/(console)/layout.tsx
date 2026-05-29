@@ -1,4 +1,4 @@
-import Sidebar from "@/components/Sidebar";
+import ConsoleShell from "@/components/ConsoleShell";
 import Topbar from "@/components/Topbar";
 import ViewingAsBanner from "@/components/ViewingAsBanner";
 import VerifyEmailBanner from "@/components/VerifyEmailBanner";
@@ -11,37 +11,33 @@ export default function ConsoleLayout({
 }) {
   return (
     <BrandingProvider>
-      <div className="relative min-h-screen">
-        {/* ambient ember glow anchored top-left of the canvas */}
-        <div className="glow-ember pointer-events-none fixed inset-x-0 top-0 z-0 h-72" />
-
-        <Sidebar />
-
-        <div className="relative z-10 lg:pl-[240px]">
-          <Topbar />
-          {/* Plan §5.4 / v1.18 — verify-email banner. Renders only for
-              session callers whose `emailVerifiedAt` is null. Short-
-              circuits to null for API-key callers (no user identity) and
-              already-verified users. */}
-          <VerifyEmailBanner />
-          {/* Plan §5.5 — white-label. Renders only when the session is
-              currently scoped to a sub-account reached via parenthood. */}
-          <ViewingAsBanner />
-          <main className="mx-auto w-full max-w-[1320px] px-4 py-8 sm:px-6 lg:px-9">
-            {children}
-          </main>
-          <footer className="mx-auto w-full max-w-[1320px] px-4 pb-10 pt-4 sm:px-6 lg:px-9">
-            <div className="flex flex-col gap-2 border-t border-border-soft pt-5 text-2xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
-              <span className="font-mono">
-                Cantila Console · MVP prototype · v0.2
-              </span>
-              <span>
-                Data plane: Hetzner — fsn1 · hel1 · ash · All systems operational
-              </span>
-            </div>
-          </footer>
-        </div>
-      </div>
+      {/* ConsoleShell owns the layout chrome — desktop sidebar, ambient
+          glow, and the mobile PUSH drawer that shifts this content to the
+          right instead of overlaying it. */}
+      <ConsoleShell>
+        <Topbar />
+        {/* Plan §5.4 / v1.18 — verify-email banner. Renders only for
+            session callers whose `emailVerifiedAt` is null. Short-
+            circuits to null for API-key callers (no user identity) and
+            already-verified users. */}
+        <VerifyEmailBanner />
+        {/* Plan §5.5 — white-label. Renders only when the session is
+            currently scoped to a sub-account reached via parenthood. */}
+        <ViewingAsBanner />
+        <main className="mx-auto w-full max-w-[1320px] px-4 py-8 sm:px-6 lg:px-9">
+          {children}
+        </main>
+        <footer className="mx-auto w-full max-w-[1320px] px-4 pb-10 pt-4 sm:px-6 lg:px-9">
+          <div className="flex flex-col gap-2 border-t border-border-soft pt-5 text-2xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
+            <span className="font-mono">
+              Cantila Console · MVP prototype · v0.2
+            </span>
+            <span>
+              Data plane: Hetzner — fsn1 · hel1 · ash · All systems operational
+            </span>
+          </div>
+        </footer>
+      </ConsoleShell>
     </BrandingProvider>
   );
 }

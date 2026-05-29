@@ -10,6 +10,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
+import PasswordField from "@/components/PasswordField";
+import OAuthButtons from "@/components/OAuthButtons";
 import { SESSION_COOKIE, establishSession, safeFrom } from "@/lib/auth";
 import { buildPageMetadata } from "@/lib/seo";
 
@@ -28,6 +30,23 @@ async function signUp(formData: FormData) {
     name: String(formData.get("name") ?? "").trim() || undefined,
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
+  });
+  if (error) {
+    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
+    redirect(`/signup?error=${encodeURIComponent(error)}${fromQs}`);
+  }
+  redirect(safeFrom(from));
+}
+
+async function continueWithProvider(formData: FormData) {
+  "use server";
+  const from = formData.get("from") as string | null;
+  // OAuth "continue with" registers-or-signs-in through the same SSO
+  // endpoint /login uses. The provider ("google"/"github") rides along
+  // via the submitter button. Control-plane SSO is a stub today.
+  const error = await establishSession("/auth/sso/login", {
+    email: String(formData.get("email") ?? ""),
+    provider: String(formData.get("provider") ?? "sso"),
   });
   if (error) {
     const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
@@ -101,13 +120,10 @@ export default async function SignupPage({
             </label>
             <label className="block">
               <span className="kv">Password</span>
-              <input
-                type="password"
+              <PasswordField
                 name="password"
-                required
-                minLength={8}
                 autoComplete="new-password"
-                className="mt-1.5 h-10 w-full rounded-lg border border-border bg-bg px-3 text-sm text-ink outline-none transition-colors focus:border-ember"
+                minLength={8}
               />
               <span className="mt-1 block text-2xs text-ink-faint">
                 At least 8 characters.
@@ -121,6 +137,16 @@ export default async function SignupPage({
               Create account
               <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
             </button>
+
+            <div className="my-4 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border-soft" />
+              <span className="font-mono text-2xs uppercase tracking-widest text-ink-faint">
+                or continue with
+              </span>
+              <span className="h-px flex-1 bg-border-soft" />
+            </div>
+
+            <OAuthButtons action={continueWithProvider} />
           </form>
 
           <p className="mt-5 text-center text-sm text-ink-dim">

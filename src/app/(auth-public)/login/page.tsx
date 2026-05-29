@@ -12,8 +12,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, Github, Rocket } from "lucide-react";
+import { ArrowRight, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
+import PasswordField from "@/components/PasswordField";
+import OAuthButtons from "@/components/OAuthButtons";
 import {
   SESSION_COOKIE,
   establishSession,
@@ -49,6 +51,9 @@ async function signInWithSso(formData: FormData) {
   const from = formData.get("from") as string | null;
   const error = await establishSession("/auth/sso/login", {
     email: String(formData.get("email") ?? ""),
+    // "google" / "github" via the submitter button; falls back to the
+    // generic SSO provider. The control-plane SSO endpoint is a stub today.
+    provider: String(formData.get("provider") ?? "sso"),
   });
   if (error) {
     const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
@@ -114,13 +119,7 @@ export default async function LoginPage({
             </label>
             <label className="block">
               <span className="kv">Password</span>
-              <input
-                type="password"
-                name="password"
-                required
-                autoComplete="current-password"
-                className="mt-1.5 h-10 w-full rounded-lg border border-border bg-bg px-3 text-sm text-ink outline-none transition-colors focus:border-ember"
-              />
+              <PasswordField name="password" autoComplete="current-password" />
             </label>
 
             <button
@@ -134,19 +133,12 @@ export default async function LoginPage({
             <div className="my-4 flex items-center gap-3">
               <span className="h-px flex-1 bg-border-soft" />
               <span className="font-mono text-2xs uppercase tracking-widest text-ink-faint">
-                or
+                or continue with
               </span>
               <span className="h-px flex-1 bg-border-soft" />
             </div>
 
-            <button
-              type="submit"
-              formAction={signInWithSso}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border bg-surface-2 text-sm font-medium text-ink transition-colors hover:border-ink-faint"
-            >
-              <Github className="h-4 w-4" />
-              Continue with SSO
-            </button>
+            <OAuthButtons action={signInWithSso} />
           </form>
 
           <p className="mt-5 text-center text-sm text-ink-dim">
