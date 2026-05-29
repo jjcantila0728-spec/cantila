@@ -170,12 +170,13 @@ function liveProjectToDisplay(p: ApiProject): Project & { live: true; liveId: st
 type DisplayProject = Project & { live?: true; liveId?: string };
 
 function ProjectCard({ p, handle }: { p: DisplayProject; handle: string | null }) {
+  // Live projects always go through the handle-prefixed route. While
+  // the handle is still loading we render the card without a link
+  // rather than fall back to the deprecated /projects/live/[id] form.
   const href = p.live
     ? handle
       ? `/@${handle}/${encodeURIComponent(p.name)}`
-      : p.liveId
-        ? `/projects/live/${p.liveId}`
-        : undefined
+      : undefined
     : ORIGINAL_IDS.has(p.id)
       ? `/projects/${p.id}`
       : undefined;

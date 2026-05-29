@@ -804,6 +804,23 @@ export const api = {
   agentsPause: () => request<{ paused: boolean }>("/agents/pause", { method: "POST" }),
   agentsResume: () => request<{ paused: boolean }>("/agents/resume", { method: "POST" }),
 
+  /** Owner-only — queue a new agent for the brain. The control plane
+   *  persists it as a "proposed" row; the canvas paints it dimmed until
+   *  a real TS agent class is wired up. Scope tags the source
+   *  (`suggested:<id>` for promoted suggestions, undefined for freeform
+   *  chat commands) so the dashboard can later distinguish them. */
+  createAgentProposal: (input: {
+    name: string;
+    blurb: string;
+    scope?: string;
+  }) =>
+    request<ApiAgentProposalRow>("/agents/proposals", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  listAgentProposals: () =>
+    request<{ proposals: ApiAgentProposalRow[] }>("/agents/proposals"),
+
   getCapacity: (accountId = "acc_demo") =>
     request<ApiCapacityRollup>(
       `/capacity?accountId=${encodeURIComponent(accountId)}`,
@@ -2195,6 +2212,19 @@ export interface ApiAgentsSnapshot {
   recentActions: ApiAgentAction[];
   agentStats: Record<ApiAgentName, { observations: number; actions: number }>;
   learnings: ApiAgentLearning[];
+  /** Owner-queued agents that don't have a backend implementation yet.
+   *  The Console paints them dimmed/dashed on the agents canvas. */
+  proposedAgents?: ApiAgentProposalRow[];
+}
+
+export interface ApiAgentProposalRow {
+  id: string;
+  name: string;
+  blurb: string;
+  scope?: string;
+  status: "proposed" | "implemented" | "rejected";
+  createdByEmail: string;
+  createdAt: string;
 }
 
 export interface ApiCostRecommendation {

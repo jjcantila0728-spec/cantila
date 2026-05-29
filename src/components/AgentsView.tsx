@@ -9,7 +9,6 @@
 
 import { useEffect, useState } from "react";
 import {
-  Brain,
   Sparkles,
   Pause,
   Play,
@@ -25,32 +24,15 @@ import {
   api,
   isControlPlaneLive,
   type ApiAgentsSnapshot,
-  type ApiAgentName,
 } from "@/lib/api";
-
-const AGENT_TONE: Record<ApiAgentName, string> = {
-  uptime: "text-live bg-live/10 ring-live/20",
-  deploy: "text-ember bg-ember/10 ring-ember/20",
-  cost: "text-info bg-info/10 ring-info/20",
-  scale: "text-violet bg-violet/10 ring-violet/20",
-  security: "text-warn bg-warn/10 ring-warn/20",
-  capacity: "text-ink-dim bg-ink-dim/10 ring-ink-dim/20",
-  mail: "text-down bg-down/10 ring-down/20",
-  sms: "text-ember-bright bg-ember-bright/10 ring-ember-bright/20",
-  automation: "text-violet bg-violet/10 ring-violet/20",
-};
-
-const AGENT_BLURB: Record<ApiAgentName, string> = {
-  uptime: "Auto-rollback on crash",
-  deploy: "Surface failed deploys",
-  cost: "Right-size & idle scan",
-  scale: "Keep instance count in bounds",
-  security: "Auth bursts & stale keys",
-  capacity: "Node load & pre-warm",
-  mail: "Bounce & complaint rates",
-  sms: "Failure & opt-out rates",
-  automation: "Workflow failures & engine reach",
-};
+import AgentsCanvas from "@/components/agents/AgentsCanvas";
+import CantilaBrainChat from "@/components/agents/CantilaBrainChat";
+import SuggestionRail from "@/components/agents/SuggestionRail";
+import {
+  AGENT_TONE,
+  type ProposedAgentRow,
+} from "@/components/agents/agent-meta";
+import { useIsOwner } from "@/lib/owner";
 
 function relative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -67,13 +49,25 @@ export default function AgentsView() {
   const [snap, setSnap] = useState<ApiAgentsSnapshot | null>(null);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<"pause" | "resume" | "tick" | null>(null);
+  const [proposed, setProposed] = useState<ProposedAgentRow[]>([]);
+  const isOwner = useIsOwner();
 
   async function load(fresh = false) {
     try {
       const next = await api.agentsStatus(fresh);
       setSnap(next);
+      if (next.proposedAgents) setProposed(next.proposedAgents);
     } catch {
       /* swallow */
+    }
+  }
+
+  async function loadProposals() {
+    try {
+      const { proposals } = await api.listAgentProposals();
+      setProposed(proposals);
+    } catch {
+      /* endpoint not deployed yet — fall back to whatever the snapshot brought */
     }
   }
 
@@ -86,6 +80,7 @@ export default function AgentsView() {
       setLiveMode(ok);
       if (!ok) return;
       void load(true);
+      void loadProposals();
       interval = window.setInterval(() => load(false), 5_000);
     })();
     return () => {
@@ -93,6 +88,19 @@ export default function AgentsView() {
       if (interval !== undefined) window.clearInterval(interval);
     };
   }, []);
+
+  function handleProposed(row: ProposedAgentRow): void {
+    setProposed((prev) =>
+      prev.some((p) => p.id === row.id) ? prev : [...prev, row],
+    );
+  }
+
+  const promotedSuggestionIds = new Set(
+    proposed
+      .map((p) => p.scope)
+      .filter((s): s is string => typeof s === "string" && s.startsWith("suggested:"))
+      .map((s) => s.slice("suggested:".length)),
+  );
 
   async function togglePause() {
     if (!snap) return;
@@ -177,54 +185,37 @@ export default function AgentsView() {
         }
       />
 
-      {/* hero card — the brain */}
-      <div className="panel relative overflow-hidden p-5">
-        <div className="glow-ember pointer-events-none absolute inset-x-0 top-0 h-16" />
-        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-ember/40 bg-ember/10 text-ember">
-            <Brain className="h-6 w-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-display text-base font-semibold text-ink">
-              One brain · eight agents · always on
-            </h2>
-            <p className="mt-1 text-2xs text-ink-dim">
-              Tick interval: 60s · auto-action policy: high confidence + safe
-              class only · destructive actions queue for human review.
-            </p>
+      {/* hub-and-spoke canvas — brain in the middle, agents radiating out.
+          Owner gets the chat + suggestion rail alongside; everyone else sees
+          just the canvas full-width. */}
+      {isOwner ? (
+        <div className="grid gap-3 lg:grid-cols-[1fr_280px]">
+          <div className="space-y-3">
+            <AgentsCanvas snapshot={snap} proposed={proposed} draggable />
+            <CantilaBrainChat
+              onProposed={handleProposed}
+              onStateChanged={() => void load(true)}
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-9">
-            {(["uptime", "deploy", "cost", "scale", "security", "capacity", "mail", "sms", "automation"] as ApiAgentName[]).map((name) => {
-              const stat = snap?.agentStats[name] ?? {
-                observations: 0,
-                actions: 0,
-              };
-              return (
-                <div
-                  key={name}
-                  className={cx(
-                    "rounded-lg px-3 py-2.5 ring-1",
-                    AGENT_TONE[name],
-                  )}
-                >
-                  <div className="font-mono text-[0.6rem] uppercase tracking-wider">
-                    {name}
-                  </div>
-                  <div className="mt-0.5 font-display text-sm font-semibold text-ink">
-                    {stat.observations}
-                    <span className="ml-1 text-2xs text-ink-faint">obs</span>
-                    <span className="ml-2">{stat.actions}</span>
-                    <span className="ml-1 text-2xs text-ink-faint">acted</span>
-                  </div>
-                  <div className="mt-0.5 text-2xs text-ink-dim">
-                    {AGENT_BLURB[name]}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <SuggestionRail
+            onPromote={async (s) => {
+              const row = await api.createAgentProposal({
+                name: s.name,
+                blurb: s.blurb,
+                scope: `suggested:${s.id}`,
+              });
+              handleProposed(row);
+            }}
+            promotedIds={promotedSuggestionIds}
+          />
         </div>
-      </div>
+      ) : (
+        <AgentsCanvas snapshot={snap} proposed={proposed} />
+      )}
+      <p className="-mt-1 text-center text-2xs text-ink-faint">
+        One brain · 9 agents{proposed.length > 0 && ` + ${proposed.length} proposed`} ·
+        60s tick · safe + high-confidence actions auto-apply, destructive queue for review.
+      </p>
 
       {/* what the brain has learned */}
       <section>

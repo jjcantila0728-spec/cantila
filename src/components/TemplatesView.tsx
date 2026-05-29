@@ -115,6 +115,7 @@ export default function TemplatesView() {
   const [query, setQuery] = useState("");
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [handle, setHandle] = useState<string | null>(null);
   const [toast, setToast] = useState<{
     kind: "ok" | "err";
     msg: string;
@@ -122,9 +123,18 @@ export default function TemplatesView() {
 
   useEffect(() => {
     let cancelled = false;
-    void isControlPlaneLive().then((ok) => {
-      if (!cancelled) setLiveMode(ok);
-    });
+    void (async () => {
+      const ok = await isControlPlaneLive();
+      if (cancelled) return;
+      setLiveMode(ok);
+      if (!ok) return;
+      try {
+        const acct = await api.getAccountMe();
+        if (!cancelled) setHandle(acct.handle);
+      } catch {
+        // best-effort
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -154,7 +164,10 @@ export default function TemplatesView() {
         msg: `${t.name} shipped — taking you to the project…`,
       });
       window.setTimeout(() => {
-        router.push(`/projects/live/${project.id}`);
+        const target = handle
+          ? `/@${handle}/${encodeURIComponent(project.name)}`
+          : `/projects/live/${project.id}`;
+        router.push(target);
       }, 700);
     } catch (err) {
       setToast({
