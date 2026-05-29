@@ -2025,6 +2025,15 @@ export type ApiWhoami =
       scope: "read" | "deploy" | "admin";
       prefix: string;
       account: ApiAccount | null;
+      /** Surfaced only for session callers (plan §5.4 / v1.18) — API-key
+       *  callers don't carry a user identity. `emailVerifiedAt` is the
+       *  ISO timestamp of verification, or `null` if not yet verified. */
+      user?: {
+        id: string;
+        email: string;
+        name: string;
+        emailVerifiedAt: string | null;
+      } | null;
     };
 
 export type ApiAgentName =
