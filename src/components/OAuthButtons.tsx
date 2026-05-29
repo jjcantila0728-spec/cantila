@@ -33,9 +33,13 @@ const BTN =
  * Rendered inside the page's auth <form>, so they inherit the hidden
  * `from` field. Each submits via `formAction` to the passed server
  * action and tags the request with a `provider` value through the
- * submitter button's name/value pair. Only providers the control plane
- * reports are rendered; an empty list (control plane unreachable) shows
- * both so the dev/stub flow still round-trips.
+ * submitter button's name/value pair. `formNoValidate` is required:
+ * without it, submitting the shared password form runs HTML5 constraint
+ * validation on the `required` email/password inputs first, so the
+ * browser blocks the OAuth submit with "email is required" before the
+ * server action ever runs (SSO needs neither field). Only providers the
+ * control plane reports are rendered; an empty list (control plane
+ * unreachable) shows both so the dev/stub flow still round-trips.
  */
 export default function OAuthButtons({
   action,
@@ -52,6 +56,7 @@ export default function OAuthButtons({
         <button
           type="submit"
           formAction={action}
+          formNoValidate
           name="provider"
           value="google"
           className={BTN}
@@ -64,6 +69,7 @@ export default function OAuthButtons({
         <button
           type="submit"
           formAction={action}
+          formNoValidate
           name="provider"
           value="github"
           className={BTN}
