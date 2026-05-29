@@ -21,6 +21,11 @@ export const metadata: Metadata = {
     title: "Cantila",
     statusBarStyle: "black-translucent",
   },
+  // `appleWebApp` emits the legacy <meta name="apple-mobile-web-app-capable">;
+  // modern browsers want the standardized name too (the other is deprecated).
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   alternates: {
     canonical: SITE_ORIGIN,
   },
