@@ -29,6 +29,11 @@ import {
   type ApiHostedMailbox,
   type ApiProject,
 } from "@/lib/api";
+import { useIsOwner } from "@/lib/owner";
+
+/** The seeded hidden Platform project that owns cantila.app
+ *  (control-plane src/domain/seed-platform.ts). Keep in sync. */
+const PLATFORM_PROJECT_ID = "proj_platform";
 
 /* Storage-quota presets shown in the create form. */
 const QUOTA_PRESETS = [
@@ -62,6 +67,10 @@ export default function MailboxesView() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isOwner = useIsOwner();
+  const [mode, setMode] = useState<"platform" | "project">("project");
+  const [oneTimePassword, setOneTimePassword] = useState<string | null>(null);
+  const [createdAddress, setCreatedAddress] = useState<string | null>(null);
 
   async function load() {
     const [mbx, prj] = await Promise.all([
@@ -93,8 +102,40 @@ export default function MailboxesView() {
 
   function openCreate() {
     setError(null);
+    setOneTimePassword(null);
+    setCreatedAddress(null);
+    setMode(isOwner ? "platform" : "project");
     setForm({ ...EMPTY_FORM, projectId: projects[0]?.id ?? "" });
     setModalOpen(true);
+  }
+
+  // Owner-only: create a real cantila.app mailbox on the hidden Platform
+  // project. Returns a one-time password we show once and never store.
+  async function createPlatformMailbox(localPart: string) {
+    const local = localPart.trim().toLowerCase();
+    if (!local || creating) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const res = await api.createHostedMailbox(PLATFORM_PROJECT_ID, {
+        address: `${local}@cantila.app`,
+        displayName: form.displayName.trim() || undefined,
+        kind: form.kind,
+        quotaMb: form.quotaMb,
+      });
+      if (res.oneTimePassword) {
+        setOneTimePassword(res.oneTimePassword);
+        setCreatedAddress(`${local}@cantila.app`);
+      } else {
+        setModalOpen(false);
+        setForm(EMPTY_FORM);
+      }
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create mailbox");
+    } finally {
+      setCreating(false);
+    }
   }
 
   async function createMailbox() {
@@ -154,7 +195,7 @@ export default function MailboxesView() {
             )}
             <button
               onClick={openCreate}
-              disabled={liveMode !== true || projects.length === 0}
+              disabled={liveMode !== true || (!isOwner && projects.length === 0)}
               className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-[#1a0e08] shadow-[0_8px_24px_-10px_rgba(255,106,61,0.7)] transition-colors hover:bg-ember-bright disabled:cursor-default disabled:opacity-50"
             >
               <Plus className="h-4 w-4" strokeWidth={2.4} />
@@ -188,7 +229,7 @@ export default function MailboxesView() {
             Create a real inbox on any project — webmail, IMAP and SMTP come
             with it.
           </p>
-          {projects.length > 0 && (
+          {(projects.length > 0 || isOwner) && (
             <button
               onClick={openCreate}
               className="mt-1 text-2xs font-medium text-ember hover:underline"
@@ -261,106 +302,211 @@ export default function MailboxesView() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => {
+          setModalOpen(false);
+          setOneTimePassword(null);
+          setCreatedAddress(null);
+        }}
         title="New hosted mailbox"
-        description="A real inbox on Cantila Mail, attached to a project."
+        description="A real inbox on Cantila Mail."
         footer={
-          <>
-            <Button variant="ghost" onClick={() => setModalOpen(false)}>
-              Cancel
-            </Button>
+          oneTimePassword ? (
             <Button
               variant="primary"
-              onClick={createMailbox}
-              disabled={!form.address.trim() || !form.projectId || creating}
+              onClick={() => {
+                setModalOpen(false);
+                setOneTimePassword(null);
+                setCreatedAddress(null);
+              }}
             >
-              {creating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" strokeWidth={2.4} />
-              )}
-              Create mailbox
+              Done
             </Button>
-          </>
+          ) : (
+            <>
+              <Button variant="ghost" onClick={() => setModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() =>
+                  mode === "platform"
+                    ? createPlatformMailbox(form.address)
+                    : createMailbox()
+                }
+                disabled={
+                  !form.address.trim() ||
+                  creating ||
+                  (mode === "project" && !form.projectId)
+                }
+              >
+                {creating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" strokeWidth={2.4} />
+                )}
+                Create mailbox
+              </Button>
+            </>
+          )
         }
       >
-        <Field label="Project">
-          <select
-            value={form.projectId}
-            onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-            className={inputClass}
-          >
-            {projects.length === 0 && <option value="">No projects</option>}
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {oneTimePassword ? (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-ink">
+              Mailbox{" "}
+              <span className="font-mono">{createdAddress}</span> created
+            </p>
+            <p className="text-2xs text-ink-faint">
+              Copy this password now — it is shown once and never stored.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 truncate rounded-md bg-surface-2 px-3 py-2 font-mono text-2xs text-ink">
+                {oneTimePassword}
+              </code>
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  void navigator.clipboard?.writeText(oneTimePassword)
+                }
+              >
+                Copy
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {isOwner && (
+              <Field label="Domain">
+                <div className="flex gap-2">
+                  {(["platform", "project"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setMode(m)}
+                      className={cx(
+                        "rounded-lg px-3 py-1.5 text-2xs font-medium transition-colors",
+                        mode === m
+                          ? "bg-surface-3 text-ink ring-1 ring-border"
+                          : "text-ink-dim hover:bg-surface-2 hover:text-ink",
+                      )}
+                    >
+                      {m === "platform" ? "cantila.app (platform)" : "Project domain"}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+            )}
 
-        <Field label="Address">
-          <input
-            autoFocus
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") createMailbox();
-            }}
-            placeholder="you@yourdomain.com"
-            className={cx(inputClass, "font-mono")}
-          />
-        </Field>
+            {mode === "project" && (
+              <Field label="Project">
+                <select
+                  value={form.projectId}
+                  onChange={(e) =>
+                    setForm({ ...form, projectId: e.target.value })
+                  }
+                  className={inputClass}
+                >
+                  {projects.length === 0 && (
+                    <option value="">No projects</option>
+                  )}
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
 
-        <Field
-          label="Display name"
-          hint="Optional — defaults to the address local-part."
-        >
-          <input
-            value={form.displayName}
-            onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-            placeholder="Jane Doe"
-            className={inputClass}
-          />
-        </Field>
+            <Field label="Address">
+              {mode === "platform" ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={form.address}
+                    onChange={(e) =>
+                      setForm({ ...form, address: e.target.value })
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter")
+                        createPlatformMailbox(form.address);
+                    }}
+                    placeholder="info"
+                    className={cx(inputClass, "font-mono")}
+                  />
+                  <span className="shrink-0 font-mono text-2xs text-ink-faint">
+                    @cantila.app
+                  </span>
+                </div>
+              ) : (
+                <input
+                  autoFocus
+                  value={form.address}
+                  onChange={(e) =>
+                    setForm({ ...form, address: e.target.value })
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") createMailbox();
+                  }}
+                  placeholder="you@yourdomain.com"
+                  className={cx(inputClass, "font-mono")}
+                />
+              )}
+            </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Kind">
-            <select
-              value={form.kind}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  kind: e.target.value as "personal" | "shared",
-                })
-              }
-              className={inputClass}
+            <Field
+              label="Display name"
+              hint="Optional — defaults to the address local-part."
             >
-              <option value="personal">Personal</option>
-              <option value="shared">Shared</option>
-            </select>
-          </Field>
-          <Field label="Quota">
-            <select
-              value={String(form.quotaMb)}
-              onChange={(e) =>
-                setForm({ ...form, quotaMb: Number(e.target.value) })
-              }
-              className={inputClass}
-            >
-              {QUOTA_PRESETS.map((q) => (
-                <option key={q.mb} value={q.mb}>
-                  {q.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+              <input
+                value={form.displayName}
+                onChange={(e) =>
+                  setForm({ ...form, displayName: e.target.value })
+                }
+                placeholder="Jane Doe"
+                className={inputClass}
+              />
+            </Field>
 
-        {error && (
-          <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
-            {error}
-          </p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Kind">
+                <select
+                  value={form.kind}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      kind: e.target.value as "personal" | "shared",
+                    })
+                  }
+                  className={inputClass}
+                >
+                  <option value="personal">Personal</option>
+                  <option value="shared">Shared</option>
+                </select>
+              </Field>
+              <Field label="Quota">
+                <select
+                  value={String(form.quotaMb)}
+                  onChange={(e) =>
+                    setForm({ ...form, quotaMb: Number(e.target.value) })
+                  }
+                  className={inputClass}
+                >
+                  {QUOTA_PRESETS.map((q) => (
+                    <option key={q.mb} value={q.mb}>
+                      {q.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            {error && (
+              <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
+                {error}
+              </p>
+            )}
+          </>
         )}
       </Modal>
     </div>

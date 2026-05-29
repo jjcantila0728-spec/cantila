@@ -622,7 +622,7 @@ export const api = {
       quotaMb?: number;
     },
   ) =>
-    request<ApiHostedMailbox>(
+    request<ApiHostedMailbox & { oneTimePassword?: string }>(
       `/projects/${encodeURIComponent(projectId)}/mailboxes`,
       { method: "POST", body: JSON.stringify(input) },
     ),

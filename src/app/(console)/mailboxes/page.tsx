@@ -1,7 +1,7 @@
-import MailboxesView from "@/components/MailboxesView";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Mailboxes · Cantila Console" };
-
+/* Mailboxes is now a tab inside the Mail workspace. Preserve old
+   links / bookmarks by redirecting to the Mailboxes tab. */
 export default function MailboxesPage() {
-  return <MailboxesView />;
+  redirect("/mail?tab=mailboxes");
 }
