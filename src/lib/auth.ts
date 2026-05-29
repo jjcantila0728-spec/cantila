@@ -91,29 +91,6 @@ export async function establishSession(
   return null;
 }
 
-/** Best-effort fetch of which SSO provider is wired, so the login /
- *  signup pages can reflect a real OIDC IdP vs the bundled stub.
- *  Never throws. */
-export async function fetchSsoInfo(): Promise<{
-  label: string;
-  live: boolean;
-}> {
-  try {
-    const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/info`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const info = (await res.json()) as { label?: unknown; live?: unknown };
-      if (typeof info.label === "string") {
-        return { label: info.label, live: info.live === true };
-      }
-    }
-  } catch {
-    // control plane unreachable — fall through to the default
-  }
-  return { label: "SSO", live: false };
-}
-
 /* ============================================================
    OAuth (Google / GitHub) redirect-flow helpers.
 

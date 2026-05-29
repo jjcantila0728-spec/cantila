@@ -31,37 +31,47 @@ const BTN =
  * Google + GitHub sign-in buttons.
  *
  * Rendered inside the page's auth <form>, so they inherit the hidden
- * `from` and (when present) `email` fields. Each submits via `formAction`
- * to the passed server action and tags the request with a `provider`
- * value through the submitter button's name/value pair.
+ * `from` field. Each submits via `formAction` to the passed server
+ * action and tags the request with a `provider` value through the
+ * submitter button's name/value pair. Only providers the control plane
+ * reports are rendered; an empty list (control plane unreachable) shows
+ * both so the dev/stub flow still round-trips.
  */
 export default function OAuthButtons({
   action,
+  providers,
 }: {
   action: (formData: FormData) => void;
+  providers: Array<{ id: string; label: string; live: boolean }>;
 }) {
+  const ids = new Set(providers.map((p) => p.id));
+  const show = (id: string) => ids.size === 0 || ids.has(id);
   return (
     <div className="grid grid-cols-2 gap-2">
-      <button
-        type="submit"
-        formAction={action}
-        name="provider"
-        value="google"
-        className={BTN}
-      >
-        <GoogleIcon className="h-4 w-4" />
-        Google
-      </button>
-      <button
-        type="submit"
-        formAction={action}
-        name="provider"
-        value="github"
-        className={BTN}
-      >
-        <Github className="h-4 w-4" />
-        GitHub
-      </button>
+      {show("google") && (
+        <button
+          type="submit"
+          formAction={action}
+          name="provider"
+          value="google"
+          className={BTN}
+        >
+          <GoogleIcon className="h-4 w-4" />
+          Google
+        </button>
+      )}
+      {show("github") && (
+        <button
+          type="submit"
+          formAction={action}
+          name="provider"
+          value="github"
+          className={BTN}
+        >
+          <Github className="h-4 w-4" />
+          GitHub
+        </button>
+      )}
     </div>
   );
 }

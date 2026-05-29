@@ -12,7 +12,13 @@ import { ArrowRight, Rocket } from "lucide-react";
 import { BrandMark } from "@/components/Sidebar";
 import PasswordField from "@/components/PasswordField";
 import OAuthButtons from "@/components/OAuthButtons";
-import { SESSION_COOKIE, establishSession, safeFrom } from "@/lib/auth";
+import {
+  SESSION_COOKIE,
+  beginOauth,
+  establishSession,
+  fetchOauthProviders,
+  safeFrom,
+} from "@/lib/auth";
 import { buildPageMetadata } from "@/lib/seo";
 
 export const metadata = buildPageMetadata({
@@ -38,21 +44,24 @@ async function signUp(formData: FormData) {
   redirect(safeFrom(from));
 }
 
-async function continueWithProvider(formData: FormData) {
+async function startOauth(formData: FormData) {
   "use server";
+  // OAuth "continue with" registers-or-signs-in through the same redirect
+  // flow /login uses — the control plane find-or-creates the user from the
+  // verified provider email, so signup and login share one start.
   const from = formData.get("from") as string | null;
-  // OAuth "continue with" registers-or-signs-in through the same SSO
-  // endpoint /login uses. The provider ("google"/"github") rides along
-  // via the submitter button. Control-plane SSO is a stub today.
-  const error = await establishSession("/auth/sso/login", {
-    email: String(formData.get("email") ?? ""),
-    provider: String(formData.get("provider") ?? "sso"),
-  });
-  if (error) {
-    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
-    redirect(`/signup?error=${encodeURIComponent(error)}${fromQs}`);
+  const provider = String(formData.get("provider") ?? "");
+  if (provider !== "google" && provider !== "github") {
+    redirect(`/signup?error=${encodeURIComponent("unknown provider")}`);
   }
-  redirect(safeFrom(from));
+  const authorizeUrl = await beginOauth(provider, safeFrom(from));
+  if (!authorizeUrl) {
+    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
+    redirect(
+      `/signup?error=${encodeURIComponent("could not start sign-in")}${fromQs}`,
+    );
+  }
+  redirect(authorizeUrl);
 }
 
 export default async function SignupPage({
@@ -61,6 +70,8 @@ export default async function SignupPage({
   searchParams: { from?: string; error?: string };
 }) {
   if (cookies().has(SESSION_COOKIE)) redirect("/dashboard");
+
+  const providers = await fetchOauthProviders();
 
   const from =
     typeof searchParams.from === "string" &&
@@ -146,7 +157,7 @@ export default async function SignupPage({
               <span className="h-px flex-1 bg-border-soft" />
             </div>
 
-            <OAuthButtons action={continueWithProvider} />
+            <OAuthButtons action={startOauth} providers={providers} />
           </form>
 
           <p className="mt-5 text-center text-sm text-ink-dim">

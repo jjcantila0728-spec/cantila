@@ -18,8 +18,9 @@ import PasswordField from "@/components/PasswordField";
 import OAuthButtons from "@/components/OAuthButtons";
 import {
   SESSION_COOKIE,
+  beginOauth,
   establishSession,
-  fetchSsoInfo,
+  fetchOauthProviders,
   safeFrom,
 } from "@/lib/auth";
 import { buildPageMetadata } from "@/lib/seo";
@@ -46,20 +47,21 @@ async function signInWithPassword(formData: FormData) {
   redirect(safeFrom(from));
 }
 
-async function signInWithSso(formData: FormData) {
+async function startOauth(formData: FormData) {
   "use server";
   const from = formData.get("from") as string | null;
-  const error = await establishSession("/auth/sso/login", {
-    email: String(formData.get("email") ?? ""),
-    // "google" / "github" via the submitter button; falls back to the
-    // generic SSO provider. The control-plane SSO endpoint is a stub today.
-    provider: String(formData.get("provider") ?? "sso"),
-  });
-  if (error) {
-    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
-    redirect(`/login?error=${encodeURIComponent(error)}${fromQs}`);
+  const provider = String(formData.get("provider") ?? "");
+  if (provider !== "google" && provider !== "github") {
+    redirect(`/login?error=${encodeURIComponent("unknown provider")}`);
   }
-  redirect(safeFrom(from));
+  const authorizeUrl = await beginOauth(provider, safeFrom(from));
+  if (!authorizeUrl) {
+    const fromQs = from ? `&from=${encodeURIComponent(from)}` : "";
+    redirect(
+      `/login?error=${encodeURIComponent("could not start sign-in")}${fromQs}`,
+    );
+  }
+  redirect(authorizeUrl);
 }
 
 export default async function LoginPage({
@@ -69,7 +71,8 @@ export default async function LoginPage({
 }) {
   if (cookies().has(SESSION_COOKIE)) redirect("/dashboard");
 
-  const sso = await fetchSsoInfo();
+  const providers = await fetchOauthProviders();
+  const anyLive = providers.some((p) => p.live);
 
   const from =
     typeof searchParams.from === "string" &&
@@ -138,7 +141,7 @@ export default async function LoginPage({
               <span className="h-px flex-1 bg-border-soft" />
             </div>
 
-            <OAuthButtons action={signInWithSso} />
+            <OAuthButtons action={startOauth} providers={providers} />
           </form>
 
           <p className="mt-5 text-center text-sm text-ink-dim">
@@ -161,9 +164,9 @@ export default async function LoginPage({
 
         <p className="mt-5 flex items-center justify-center gap-1.5 text-center text-2xs text-ink-faint">
           <Rocket className="h-3 w-3 text-ember" />
-          {sso.live
-            ? `MVP prototype — sign-in mints a real session; SSO via ${sso.label}.`
-            : "MVP prototype — sign-in mints a real session; the SSO provider is a stub."}
+          {anyLive
+            ? "MVP prototype — sign-in mints a real session; social login is live."
+            : "MVP prototype — sign-in mints a real session; social login is a stub."}
         </p>
       </div>
     </div>

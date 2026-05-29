@@ -98,6 +98,9 @@ const PUBLIC_AUTH_PREFIXES = [
   // credential, so these pages are reachable signed-out.
   "/reset/",
   "/verify/",
+  // `/auth/callback/<provider>` — the signed-out browser lands here
+  // from the IdP carrying ?code&state; the route sets the session.
+  "/auth/callback/",
   ...PUBLIC_ONLY_PREFIXES.map((p) => p + "/"),
   ...PUBLIC_ONLY_PREFIXES, // exact match too (e.g. "/pricing")
 ];
