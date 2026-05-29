@@ -38,7 +38,11 @@ export async function GET(
     const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/login`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ provider: params.provider, code }),
+      body: JSON.stringify({
+        provider: params.provider,
+        code,
+        codeVerifier: stored.codeVerifier,
+      }),
       cache: "no-store",
     });
     const data = (await res.json().catch(() => null)) as {

@@ -128,6 +128,7 @@ export async function beginOauth(
   const redirectUri = `${oauthBaseUrl()}/auth/callback/${provider}`;
   let authorizeUrl: string;
   let state: string;
+  let codeVerifier = "";
   try {
     const res = await fetch(`${CONTROL_PLANE_URL}/v1/auth/sso/start`, {
       method: "POST",
@@ -138,16 +139,18 @@ export async function beginOauth(
     const data = (await res.json().catch(() => null)) as {
       authorizeUrl?: string;
       state?: string;
+      codeVerifier?: string;
     } | null;
     if (!res.ok || !data?.authorizeUrl || !data?.state) return null;
     authorizeUrl = data.authorizeUrl;
     state = data.state;
+    codeVerifier = data.codeVerifier ?? "";
   } catch {
     return null;
   }
   cookies().set(
     OAUTH_STATE_COOKIE,
-    JSON.stringify({ state, from, provider }),
+    JSON.stringify({ state, from, provider, codeVerifier }),
     {
       httpOnly: true,
       sameSite: "lax",
@@ -165,7 +168,7 @@ export async function beginOauth(
  *  clears the cookie. */
 export function consumeOauthState(
   presentedState: string | undefined,
-): { from: string; provider: string } | null {
+): { from: string; provider: string; codeVerifier: string } | null {
   const raw = cookies().get(OAUTH_STATE_COOKIE)?.value;
   cookies().delete(OAUTH_STATE_COOKIE);
   if (!raw || !presentedState) return null;
@@ -174,11 +177,14 @@ export function consumeOauthState(
       state?: string;
       from?: string;
       provider?: string;
+      codeVerifier?: string;
     };
     if (!parsed.state || parsed.state !== presentedState) return null;
     return {
       from: typeof parsed.from === "string" ? parsed.from : "/dashboard",
       provider: parsed.provider ?? "",
+      codeVerifier:
+        typeof parsed.codeVerifier === "string" ? parsed.codeVerifier : "",
     };
   } catch {
     return null;
