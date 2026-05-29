@@ -3,13 +3,15 @@
 /* ============================================================
    Cantilapay — Console dashboard (plan §25, Phase 6).
 
-   Single-page overview of the tenant's cantilapay account:
+   Single-page overview of the tenant's cantilapay account, styled
+   with the Console design system (Panel / Pill / Button / Modal /
+   CopyButton). Sections:
 
-     - status banner (created / onboarding / active / rejected)
-       + "Continue onboarding" CTA when not active
-     - adapter probe ("Stripe stub" vs "Adyen for Platforms (test)")
-     - API keys panel: list + issue + revoke (test mode shown first)
-     - webhook endpoints panel: list + register
+     - enable gate (pre-provision)
+     - account status + onboarding stepper
+     - adapter probe ("Stub" vs "Adyen for Platforms (test)")
+     - API keys: list + issue (modal) + revoke (confirm modal)
+     - webhook endpoints: list + register (modal)
      - recent audit log
 
    Subsequent drops add per-section sub-pages (/cantilapay/payments,
@@ -17,7 +19,19 @@
    `(console)/billing` surface.
    ============================================================ */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  Wallet,
+  KeyRound,
+  Webhook,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Loader2,
+  ScrollText,
+  CheckCircle2,
+  ShieldCheck,
+} from "lucide-react";
 import {
   cantilapayApi,
   type CantilapayAccount,
@@ -27,6 +41,19 @@ import {
   type CantilapayMode,
   type CantilapayWebhookEndpoint,
 } from "@/lib/cantilapay-api";
+import {
+  cx,
+  Pill,
+  Panel,
+  PageHeader,
+  SectionLabel,
+  Button,
+  KeyVal,
+} from "../ui";
+import Modal, { Field, inputClass } from "../Modal";
+import CopyButton from "../CopyButton";
+
+/* ---------- state ---------- */
 
 interface State {
   loading: boolean;
@@ -58,13 +85,55 @@ const INITIAL: State = {
   error: null,
 };
 
-function fmtAmount(amount: number, currency: string): string {
-  const major = amount / 100;
-  return `${major.toFixed(2)} ${currency.toUpperCase()}`;
+/* ---------- helpers ---------- */
+
+type PillTone = "neutral" | "ember" | "live" | "info" | "violet" | "warn" | "down";
+
+const ACCOUNT_TONE: Record<string, PillTone> = {
+  active: "live",
+  onboarding: "ember",
+  created: "info",
+  rejected: "down",
+  disabled: "neutral",
+};
+
+const ONBOARDING_STEPS: { key: string; label: string }[] = [
+  { key: "created", label: "Created" },
+  { key: "onboarding", label: "Onboarding" },
+  { key: "active", label: "Active" },
+];
+
+function stepIndex(status: string | undefined): number {
+  switch (status) {
+    case "created":
+      return 0;
+    case "onboarding":
+      return 1;
+    case "active":
+      return 2;
+    default:
+      return 0; // rejected / disabled sit at the start visually
+  }
 }
 
-export default function CantilapayDashboard(): JSX.Element {
+function shortDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  return iso.slice(0, 10);
+}
+
+/* ---------- component ---------- */
+
+export default function CantilapayDashboard() {
   const [state, setState] = useState<State>(INITIAL);
+
+  // modal state
+  const [issueOpen, setIssueOpen] = useState(false);
+  const [issueKind, setIssueKind] = useState<"publishable" | "secret">("secret");
+  const [issueMode, setIssueMode] = useState<CantilapayMode>("test");
+  const [webhookOpen, setWebhookOpen] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookMode, setWebhookMode] = useState<CantilapayMode>("test");
+  const [revokeTarget, setRevokeTarget] = useState<CantilapayApiKey | null>(null);
 
   const refresh = useCallback(async () => {
     setState((s) => ({ ...s, loading: true, error: null }));
@@ -83,20 +152,17 @@ export default function CantilapayDashboard(): JSX.Element {
       let audit: CantilapayAuditEntry[] = [];
       if (enabled) {
         try {
-          const k = await cantilapayApi.listKeys();
-          keys = k.keys;
+          keys = (await cantilapayApi.listKeys()).keys;
         } catch {
           /* keep empty */
         }
         try {
-          const w = await cantilapayApi.listWebhookEndpoints();
-          webhooks = w.endpoints;
+          webhooks = (await cantilapayApi.listWebhookEndpoints()).endpoints;
         } catch {
           /* keep empty */
         }
         try {
-          const a = await cantilapayApi.listAudit(50);
-          audit = a.entries;
+          audit = (await cantilapayApi.listAudit(50)).entries;
         } catch {
           /* keep empty */
         }
@@ -111,10 +177,6 @@ export default function CantilapayDashboard(): JSX.Element {
         keys,
         webhooks,
         audit,
-        freshKey: null,
-        freshWebhookSecret: null,
-        busy: false,
-        error: null,
       });
     } catch (err) {
       setState({
@@ -129,22 +191,21 @@ export default function CantilapayDashboard(): JSX.Element {
     void refresh();
   }, [refresh]);
 
+  const setBusy = (busy: boolean, error: string | null = null) =>
+    setState((s) => ({ ...s, busy, error }));
+
   const onEnable = useCallback(async () => {
-    setState((s) => ({ ...s, busy: true, error: null }));
+    setBusy(true);
     try {
       await cantilapayApi.enable("USA");
       await refresh();
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        busy: false,
-        error: err instanceof Error ? err.message : "enable failed",
-      }));
+      setBusy(false, err instanceof Error ? err.message : "enable failed");
     }
   }, [refresh]);
 
   const onOnboard = useCallback(async () => {
-    setState((s) => ({ ...s, busy: true, error: null }));
+    setBusy(true);
     try {
       const link = await cantilapayApi.onboardingLink({
         mode: "test",
@@ -153,354 +214,547 @@ export default function CantilapayDashboard(): JSX.Element {
       });
       window.location.assign(link.url);
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        busy: false,
-        error: err instanceof Error ? err.message : "onboarding failed",
-      }));
+      setBusy(false, err instanceof Error ? err.message : "onboarding failed");
     }
   }, [state.account]);
 
-  const onIssueKey = useCallback(
-    async (kind: "publishable" | "secret", mode: CantilapayMode) => {
-      setState((s) => ({ ...s, busy: true, error: null }));
-      try {
-        const issued = await cantilapayApi.issueKey({
-          name: `${mode} ${kind} key`,
-          kind,
-          mode,
-        });
-        setState((s) => ({ ...s, freshKey: issued, busy: false }));
-        await refresh();
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          busy: false,
-          error: err instanceof Error ? err.message : "issue key failed",
-        }));
-      }
-    },
-    [refresh],
-  );
+  const onIssueKey = useCallback(async () => {
+    setBusy(true);
+    try {
+      const issued = await cantilapayApi.issueKey({
+        name: `${issueMode} ${issueKind} key`,
+        kind: issueKind,
+        mode: issueMode,
+      });
+      setIssueOpen(false);
+      await refresh();
+      setState((s) => ({ ...s, freshKey: issued }));
+    } catch (err) {
+      setBusy(false, err instanceof Error ? err.message : "issue key failed");
+    }
+  }, [issueKind, issueMode, refresh]);
 
-  const onRevokeKey = useCallback(
-    async (id: string) => {
-      setState((s) => ({ ...s, busy: true, error: null }));
-      try {
-        await cantilapayApi.revokeKey(id);
-        await refresh();
-      } catch (err) {
-        setState((s) => ({
-          ...s,
-          busy: false,
-          error: err instanceof Error ? err.message : "revoke failed",
-        }));
-      }
-    },
-    [refresh],
-  );
+  const onRevokeKey = useCallback(async () => {
+    if (!revokeTarget) return;
+    setBusy(true);
+    try {
+      await cantilapayApi.revokeKey(revokeTarget.id);
+      setRevokeTarget(null);
+      await refresh();
+    } catch (err) {
+      setBusy(false, err instanceof Error ? err.message : "revoke failed");
+    }
+  }, [revokeTarget, refresh]);
 
   const onAddWebhook = useCallback(async () => {
-    const url = window.prompt("Webhook URL (https://...)");
+    const url = webhookUrl.trim();
     if (!url) return;
-    setState((s) => ({ ...s, busy: true, error: null }));
+    setBusy(true);
     try {
       const created = await cantilapayApi.createWebhookEndpoint({
         url,
-        mode: "test",
+        mode: webhookMode,
       });
+      setWebhookOpen(false);
+      setWebhookUrl("");
+      await refresh();
       setState((s) => ({
         ...s,
         freshWebhookSecret: { id: created.id, secret: created.signingSecret },
-        busy: false,
       }));
-      await refresh();
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        busy: false,
-        error: err instanceof Error ? err.message : "create webhook failed",
-      }));
+      setBusy(false, err instanceof Error ? err.message : "create webhook failed");
     }
-  }, [refresh]);
+  }, [webhookUrl, webhookMode, refresh]);
+
+  const adapterPill = state.adapterLabel ? (
+    <Pill tone={state.adapterLive ? "live" : "neutral"}>
+      <ShieldCheck className="h-3 w-3" />
+      {state.adapterLabel}
+      {state.adapterLive ? " · live" : " · stub"}
+    </Pill>
+  ) : null;
+
+  /* ---------- loading ---------- */
 
   if (state.loading) {
     return (
-      <div style={{ padding: "2rem" }}>Loading cantilapay dashboard…</div>
-    );
-  }
-
-  if (!state.enabled) {
-    return (
-      <div style={{ maxWidth: 720, margin: "2rem auto", padding: "2rem" }}>
-        <h1>Cantilapay</h1>
-        <p>
-          The 12th Cantila product surface — let your end-users pay you with a
-          single API call. Built on Adyen for Platforms (NOT Stripe). Your
-          end-customers see your business name on their receipts; you are the
-          merchant of record.
-        </p>
-        {state.adapterLabel && (
-          <p style={{ opacity: 0.7 }}>
-            Adapter: <strong>{state.adapterLabel}</strong> ({state.adapterLive ? "live" : "stub"})
-          </p>
-        )}
-        {state.error && <p style={{ color: "#c00" }}>{state.error}</p>}
-        <button
-          onClick={() => void onEnable()}
-          disabled={state.busy}
-          style={{ marginTop: "1rem" }}
-        >
-          Enable Cantilapay
-        </button>
+      <div className="space-y-8">
+        <PageHeader eyebrow="Payments" title="Cantilapay" lead="Loading your payments account…" />
+        <div className="grid gap-4">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="panel h-28 animate-pulse bg-surface-2" />
+          ))}
+        </div>
       </div>
     );
   }
 
+  /* ---------- enable gate ---------- */
+
+  if (!state.enabled) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 py-6">
+        <div className="flex flex-col items-center text-center">
+          <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-ember/10 ring-1 ring-ember/20">
+            <Wallet className="h-7 w-7 text-ember" strokeWidth={2} />
+          </span>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            Cantilapay
+          </h1>
+          <p className="mt-2 max-w-md text-sm text-ink-dim">
+            The 12th Cantila product surface — let your end-users pay you with a
+            single API call. Built on Adyen for Platforms (not Stripe). Your
+            customers see <span className="text-ink">your</span> business name
+            on their receipts; you are the merchant of record.
+          </p>
+          {adapterPill && <div className="mt-4">{adapterPill}</div>}
+        </div>
+
+        {state.error && (
+          <div className="rounded-lg border border-down/40 bg-down/10 px-4 py-3 text-2xs text-down">
+            {state.error}
+          </div>
+        )}
+
+        <Panel className="flex flex-col items-center gap-4 text-center">
+          <div className="text-sm text-ink-dim">
+            Enabling provisions your Cantilapay account in <strong className="text-ink">test mode</strong> — issue API keys,
+            register webhooks, and run test payments. No charges until you complete onboarding and go live.
+          </div>
+          <Button variant="primary" onClick={() => void onEnable()} disabled={state.busy}>
+            {state.busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Wallet className="h-4 w-4" />
+            )}
+            Enable Cantilapay
+          </Button>
+        </Panel>
+      </div>
+    );
+  }
+
+  /* ---------- enabled dashboard ---------- */
+
+  const acc = state.account;
+  const accTone: PillTone = ACCOUNT_TONE[acc?.status ?? "created"] ?? "neutral";
+  const curStep = stepIndex(acc?.status);
+
   return (
-    <div style={{ maxWidth: 960, margin: "2rem auto", padding: "1rem" }}>
-      <h1>Cantilapay</h1>
-      <p style={{ opacity: 0.7 }}>
-        Adapter: <strong>{state.adapterLabel ?? "?"}</strong>
-        {state.adapterLive ? " (live)" : " (stub)"}
-      </p>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Payments"
+        title="Cantilapay"
+        lead="Accept payments under your own brand — you are the merchant of record, built on Adyen for Platforms."
+        actions={
+          <div className="flex items-center gap-2">
+            {adapterPill}
+            {acc && (
+              <Pill tone={accTone}>
+                {acc.status}
+              </Pill>
+            )}
+          </div>
+        }
+      />
 
       {state.error && (
-        <div
-          style={{
-            background: "#fee",
-            border: "1px solid #c33",
-            padding: "0.75rem",
-            borderRadius: 4,
-            marginBottom: "1rem",
-          }}
-        >
+        <div className="rounded-lg border border-down/40 bg-down/10 px-4 py-3 text-2xs text-down">
           {state.error}
         </div>
       )}
 
-      {/* Status banner */}
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: "1rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Account status</h2>
-        <p>
-          <strong>{state.account?.status}</strong>
-          {state.account?.testReady ? " · test ready" : ""}
-          {state.account?.liveReady ? " · live ready" : ""}
-          {" · platform fee "}
-          {((state.account?.platformFeeBps ?? 0) / 100).toFixed(2)}%
-        </p>
-        {state.account?.status !== "active" && (
-          <button onClick={() => void onOnboard()} disabled={state.busy}>
-            Continue onboarding (test mode)
-          </button>
-        )}
-      </section>
-
-      {/* Fresh key */}
+      {/* fresh key reveal */}
       {state.freshKey && (
-        <section
-          style={{
-            background: "#efd",
-            border: "1px solid #2a2",
-            borderRadius: 8,
-            padding: "1rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>New API key — shown once</h2>
-          <p>
-            Save this key now. It will never be shown again — only the
-            prefix <code>{state.freshKey.prefix}</code> will be visible later.
-          </p>
-          <pre
-            style={{
-              background: "#fff",
-              padding: "0.75rem",
-              borderRadius: 4,
-              overflowX: "auto",
-            }}
+        <Panel className="border-live/40 bg-live/[0.06]">
+          <SectionLabel
+            right={
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setState((s) => ({ ...s, freshKey: null }))}
+              >
+                Dismiss
+              </Button>
+            }
           >
-            {state.freshKey.rawKey}
-          </pre>
-        </section>
+            New API key — shown once
+          </SectionLabel>
+          <p className="mb-3 text-2xs text-ink-dim">
+            Save this now. Only the prefix{" "}
+            <code className="text-ink">{state.freshKey.prefix}…</code> is visible
+            afterwards.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-bg px-3 py-2 font-mono text-xs text-ink">
+              {state.freshKey.rawKey}
+            </code>
+            <CopyButton value={state.freshKey.rawKey} label="Copy" />
+          </div>
+        </Panel>
       )}
 
-      {/* Fresh webhook secret */}
+      {/* fresh webhook secret reveal */}
       {state.freshWebhookSecret && (
-        <section
-          style={{
-            background: "#efd",
-            border: "1px solid #2a2",
-            borderRadius: 8,
-            padding: "1rem",
-            marginBottom: "1.5rem",
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>New webhook signing secret — shown once</h2>
-          <p>
-            Save this secret. Your server uses it to verify the
-            <code> Cantilapay-Signature </code> header on every delivery.
-          </p>
-          <pre
-            style={{
-              background: "#fff",
-              padding: "0.75rem",
-              borderRadius: 4,
-              overflowX: "auto",
-            }}
+        <Panel className="border-live/40 bg-live/[0.06]">
+          <SectionLabel
+            right={
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setState((s) => ({ ...s, freshWebhookSecret: null }))}
+              >
+                Dismiss
+              </Button>
+            }
           >
-            {state.freshWebhookSecret.secret}
-          </pre>
-        </section>
+            New webhook signing secret — shown once
+          </SectionLabel>
+          <p className="mb-3 text-2xs text-ink-dim">
+            Your server verifies the{" "}
+            <code className="text-ink">Cantilapay-Signature</code> header with
+            this.
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-bg px-3 py-2 font-mono text-xs text-ink">
+              {state.freshWebhookSecret.secret}
+            </code>
+            <CopyButton value={state.freshWebhookSecret.secret} label="Copy" />
+          </div>
+        </Panel>
       )}
+
+      {/* account status + onboarding */}
+      <Panel>
+        <SectionLabel
+          right={
+            acc && acc.status !== "active" ? (
+              <Button size="sm" variant="primary" onClick={() => void onOnboard()} disabled={state.busy}>
+                {state.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
+                Continue onboarding
+              </Button>
+            ) : undefined
+          }
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 text-ink-faint" />
+            Account status
+          </span>
+        </SectionLabel>
+
+        {/* stepper */}
+        <div className="mb-5 flex items-center">
+          {ONBOARDING_STEPS.map((step, i) => {
+            const done = i < curStep;
+            const current = i === curStep;
+            return (
+              <div key={step.key} className="flex flex-1 items-center last:flex-none">
+                <div className="flex flex-col items-center gap-1.5">
+                  <span
+                    className={cx(
+                      "flex h-7 w-7 items-center justify-center rounded-full text-2xs font-semibold ring-1 transition-colors",
+                      done && "bg-live/15 text-live ring-live/30",
+                      current && "bg-ember/15 text-ember ring-ember/30",
+                      !done && !current && "bg-surface-3 text-ink-faint ring-border",
+                    )}
+                  >
+                    {done ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                  </span>
+                  <span
+                    className={cx(
+                      "text-2xs",
+                      current ? "text-ink" : "text-ink-faint",
+                    )}
+                  >
+                    {step.label}
+                  </span>
+                </div>
+                {i < ONBOARDING_STEPS.length - 1 && (
+                  <span
+                    className={cx(
+                      "mx-2 h-px flex-1 transition-colors",
+                      i < curStep ? "bg-live/40" : "bg-border",
+                    )}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="divide-y divide-border-soft">
+          <KeyVal k="Status">
+            <Pill tone={accTone}>{acc?.status ?? "—"}</Pill>
+          </KeyVal>
+          <KeyVal k="Readiness">
+            <span className="inline-flex gap-1.5">
+              <Pill tone={acc?.testReady ? "live" : "neutral"}>
+                test {acc?.testReady ? "ready" : "pending"}
+              </Pill>
+              <Pill tone={acc?.liveReady ? "live" : "neutral"}>
+                live {acc?.liveReady ? "ready" : "pending"}
+              </Pill>
+            </span>
+          </KeyVal>
+          <KeyVal k="Platform fee">
+            {((acc?.platformFeeBps ?? 0) / 100).toFixed(2)}%
+          </KeyVal>
+          <KeyVal k="Country">{acc?.country ?? "—"}</KeyVal>
+        </div>
+      </Panel>
 
       {/* API keys */}
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: "1rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>API keys</h2>
-        <div style={{ marginBottom: "1rem" }}>
-          <button onClick={() => void onIssueKey("publishable", "test")} disabled={state.busy}>
-            New publishable test key
-          </button>{" "}
-          <button onClick={() => void onIssueKey("secret", "test")} disabled={state.busy}>
-            New secret test key
-          </button>{" "}
-          <button onClick={() => void onIssueKey("publishable", "live")} disabled={state.busy}>
-            New publishable live key
-          </button>{" "}
-          <button onClick={() => void onIssueKey("secret", "live")} disabled={state.busy}>
-            New secret live key
-          </button>
-        </div>
+      <Panel>
+        <SectionLabel
+          right={
+            <Button size="sm" variant="outline" onClick={() => setIssueOpen(true)} disabled={state.busy}>
+              <Plus className="h-4 w-4" />
+              Issue key
+            </Button>
+          }
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <KeyRound className="h-3.5 w-3.5 text-ink-faint" />
+            API keys
+          </span>
+        </SectionLabel>
+
         {state.keys.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>No keys yet.</p>
+          <EmptyRow icon={<KeyRound className="h-5 w-5" />} text="No API keys yet. Issue one to start integrating." />
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left" }}>Name</th>
-                <th style={{ textAlign: "left" }}>Kind</th>
-                <th style={{ textAlign: "left" }}>Mode</th>
-                <th style={{ textAlign: "left" }}>Prefix</th>
-                <th style={{ textAlign: "left" }}>Status</th>
-                <th style={{ textAlign: "left" }}>Created</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {state.keys.map((k) => (
-                <tr key={k.id} style={{ borderTop: "1px solid #eee" }}>
-                  <td>{k.name}</td>
-                  <td>{k.kind}</td>
-                  <td>{k.mode}</td>
-                  <td>
-                    <code>{k.prefix}…</code>
-                  </td>
-                  <td>{k.revokedAt ? "revoked" : "active"}</td>
-                  <td>{k.createdAt.slice(0, 10)}</td>
-                  <td>
-                    {!k.revokedAt && (
-                      <button
-                        onClick={() => void onRevokeKey(k.id)}
-                        disabled={state.busy}
-                      >
-                        Revoke
-                      </button>
-                    )}
-                  </td>
+          <div className="overflow-hidden rounded-lg border border-border-soft">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-2 text-2xs uppercase tracking-wider text-ink-faint">
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Kind</Th>
+                  <Th>Mode</Th>
+                  <Th>Prefix</Th>
+                  <Th>Status</Th>
+                  <Th>Created</Th>
+                  <Th> </Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border-soft">
+                {state.keys.map((k) => (
+                  <tr key={k.id} className="hover:bg-surface-2/50">
+                    <Td className="text-ink">{k.name}</Td>
+                    <Td><Pill tone={k.kind === "secret" ? "violet" : "info"}>{k.kind}</Pill></Td>
+                    <Td><Pill tone={k.mode === "live" ? "ember" : "neutral"}>{k.mode}</Pill></Td>
+                    <Td><code className="font-mono text-2xs text-ink-dim">{k.prefix}…</code></Td>
+                    <Td><Pill tone={k.revokedAt ? "down" : "live"}>{k.revokedAt ? "revoked" : "active"}</Pill></Td>
+                    <Td className="font-mono text-2xs text-ink-faint">{shortDate(k.createdAt)}</Td>
+                    <Td className="text-right">
+                      {!k.revokedAt && (
+                        <Button size="sm" variant="ghost" onClick={() => setRevokeTarget(k)} disabled={state.busy}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </Panel>
 
-      {/* Webhook endpoints */}
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: "1rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Webhook endpoints</h2>
-        <div style={{ marginBottom: "1rem" }}>
-          <button onClick={() => void onAddWebhook()} disabled={state.busy}>
-            Register webhook URL
-          </button>
-        </div>
+      {/* webhook endpoints */}
+      <Panel>
+        <SectionLabel
+          right={
+            <Button size="sm" variant="outline" onClick={() => setWebhookOpen(true)} disabled={state.busy}>
+              <Plus className="h-4 w-4" />
+              Register endpoint
+            </Button>
+          }
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Webhook className="h-3.5 w-3.5 text-ink-faint" />
+            Webhook endpoints
+          </span>
+        </SectionLabel>
+
         {state.webhooks.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>No webhook endpoints yet.</p>
+          <EmptyRow icon={<Webhook className="h-5 w-5" />} text="No webhook endpoints yet. Register a URL to receive events." />
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left" }}>URL</th>
-                <th style={{ textAlign: "left" }}>Mode</th>
-                <th style={{ textAlign: "left" }}>Events</th>
-                <th style={{ textAlign: "left" }}>Secret</th>
-                <th style={{ textAlign: "left" }}>Last delivery</th>
-              </tr>
-            </thead>
-            <tbody>
-              {state.webhooks.map((w) => (
-                <tr key={w.id} style={{ borderTop: "1px solid #eee" }}>
-                  <td>{w.url}</td>
-                  <td>{w.mode}</td>
-                  <td>{w.enabledEvents}</td>
-                  <td>
-                    <code>{w.signingSecretPrefix}…</code>
-                  </td>
-                  <td>{w.lastDeliveryAt?.slice(0, 10) ?? "—"}</td>
+          <div className="overflow-hidden rounded-lg border border-border-soft">
+            <table className="w-full text-sm">
+              <thead className="bg-surface-2 text-2xs uppercase tracking-wider text-ink-faint">
+                <tr>
+                  <Th>URL</Th>
+                  <Th>Mode</Th>
+                  <Th>Events</Th>
+                  <Th>Secret</Th>
+                  <Th>Last delivery</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-border-soft">
+                {state.webhooks.map((w) => (
+                  <tr key={w.id} className="hover:bg-surface-2/50">
+                    <Td className="max-w-[260px] truncate text-ink">{w.url}</Td>
+                    <Td><Pill tone={w.mode === "live" ? "ember" : "neutral"}>{w.mode}</Pill></Td>
+                    <Td className="text-2xs text-ink-dim">{w.enabledEvents}</Td>
+                    <Td><code className="font-mono text-2xs text-ink-faint">{w.signingSecretPrefix}…</code></Td>
+                    <Td className="font-mono text-2xs text-ink-faint">{shortDate(w.lastDeliveryAt)}</Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </Panel>
 
-      {/* Audit */}
-      <section
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: "1rem",
-        }}
-      >
-        <h2 style={{ marginTop: 0 }}>Recent activity</h2>
+      {/* recent activity */}
+      <Panel>
+        <SectionLabel>
+          <span className="inline-flex items-center gap-1.5">
+            <ScrollText className="h-3.5 w-3.5 text-ink-faint" />
+            Recent activity
+          </span>
+        </SectionLabel>
         {state.audit.length === 0 ? (
-          <p style={{ opacity: 0.7 }}>No activity yet.</p>
+          <EmptyRow icon={<ScrollText className="h-5 w-5" />} text="No activity yet." />
         ) : (
-          <ul>
+          <ul className="divide-y divide-border-soft">
             {state.audit.slice(0, 25).map((e) => (
-              <li key={e.id}>
-                <code>{e.type}</code> — {e.message}{" "}
-                <span style={{ opacity: 0.6 }}>({e.createdAt.slice(0, 10)})</span>
+              <li key={e.id} className="flex items-center gap-3 py-2.5">
+                <Pill tone="neutral">{e.type}</Pill>
+                <span className="min-w-0 flex-1 truncate text-sm text-ink-dim">{e.message}</span>
+                <span className="shrink-0 font-mono text-2xs text-ink-faint">{shortDate(e.createdAt)}</span>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </Panel>
 
-      <p style={{ opacity: 0.6, marginTop: "2rem", fontSize: 12 }}>
-        This page is the Phase 6.0 dashboard surface. Per-section pages
-        (/payments, /subscriptions, /customers, /payouts, /webhooks/:id,
-        /products) ship as Phase 6.1+. See plan §25.
+      <p className="text-2xs text-ink-faint">
+        Phase 6.0 dashboard surface. Per-section pages (payments, subscriptions,
+        customers, payouts) ship as Phase 6.1+. See plan §25.
       </p>
+
+      {/* ---------- issue key modal ---------- */}
+      <Modal
+        open={issueOpen}
+        onClose={() => setIssueOpen(false)}
+        title="Issue an API key"
+        description="Publishable keys are safe for client code; secret keys must stay server-side."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setIssueOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void onIssueKey()} disabled={state.busy}>
+              {state.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              Issue key
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Kind">
+            <select
+              className={inputClass}
+              value={issueKind}
+              onChange={(e) => setIssueKind(e.target.value as "publishable" | "secret")}
+            >
+              <option value="secret">Secret (server-side)</option>
+              <option value="publishable">Publishable (client-side)</option>
+            </select>
+          </Field>
+          <Field label="Mode" hint="Live keys only work once your account is live-ready.">
+            <select
+              className={inputClass}
+              value={issueMode}
+              onChange={(e) => setIssueMode(e.target.value as CantilapayMode)}
+            >
+              <option value="test">Test</option>
+              <option value="live">Live</option>
+            </select>
+          </Field>
+        </div>
+      </Modal>
+
+      {/* ---------- register webhook modal ---------- */}
+      <Modal
+        open={webhookOpen}
+        onClose={() => setWebhookOpen(false)}
+        title="Register a webhook endpoint"
+        description="Cantilapay POSTs signed events to this URL. You'll get a signing secret once."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setWebhookOpen(false)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void onAddWebhook()} disabled={state.busy || !webhookUrl.trim()}>
+              {state.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Webhook className="h-4 w-4" />}
+              Register
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Endpoint URL">
+            <input
+              className={inputClass}
+              type="url"
+              placeholder="https://api.yourapp.com/cantilapay/webhook"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+            />
+          </Field>
+          <Field label="Mode">
+            <select
+              className={inputClass}
+              value={webhookMode}
+              onChange={(e) => setWebhookMode(e.target.value as CantilapayMode)}
+            >
+              <option value="test">Test</option>
+              <option value="live">Live</option>
+            </select>
+          </Field>
+        </div>
+      </Modal>
+
+      {/* ---------- revoke confirm modal ---------- */}
+      <Modal
+        open={!!revokeTarget}
+        onClose={() => setRevokeTarget(null)}
+        title="Revoke API key?"
+        description="This immediately stops the key from authenticating. It cannot be undone."
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRevokeTarget(null)}>Cancel</Button>
+            <Button variant="primary" onClick={() => void onRevokeKey()} disabled={state.busy}>
+              {state.busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Revoke key
+            </Button>
+          </>
+        }
+      >
+        {revokeTarget && (
+          <div className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
+            <span className="text-ink">{revokeTarget.name}</span>
+            <span className="ml-2 font-mono text-2xs text-ink-faint">{revokeTarget.prefix}…</span>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
+/* ---------- small presentational helpers ---------- */
+
+function Th({ children }: { children: ReactNode }) {
+  return <th className="px-3 py-2 text-left font-medium">{children}</th>;
+}
+
+function Td({ children, className }: { children: ReactNode; className?: string }) {
+  return <td className={cx("px-3 py-2.5 align-middle", className)}>{children}</td>;
+}
+
+function EmptyRow({ icon, text }: { icon: ReactNode; text: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-surface-2/40 py-8 text-center">
+      <span className="text-ink-faint">{icon}</span>
+      <span className="text-2xs text-ink-dim">{text}</span>
     </div>
   );
 }
