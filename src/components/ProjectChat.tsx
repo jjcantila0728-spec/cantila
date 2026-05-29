@@ -10,7 +10,7 @@
 
    When the page lands with `?build=1`, we kick the initial
    build stream (`POST /v1/projects/:id/build`) using the prompt
-   the user typed at /deploy. The orchestrator persists the
+   the user typed at /chat. The orchestrator persists the
    first user message into the chat history, so a refresh mid-
    build picks up where it left off.
    ============================================================ */
@@ -36,7 +36,7 @@ interface ProjectChatProps {
   projectId: string;
   projectName: string;
   /** When set, the chat boots in build mode and streams the initial
-   *  build right away — used by the redirect from /deploy. */
+   *  build right away — used by the redirect from /chat. */
   initialBuildPrompt?: string;
   /** Notified when a new asset lands so the workspace can refresh its
    *  AssetGallery without re-fetching. */
@@ -72,7 +72,7 @@ export default function ProjectChat({
     };
   }, [projectId]);
 
-  /* ---- kick the initial build if we arrived here from /deploy ---- */
+  /* ---- kick the initial build if we arrived here from /chat ---- */
   useEffect(() => {
     if (!initialBuildPrompt || bootedRef.current) return;
     bootedRef.current = true;

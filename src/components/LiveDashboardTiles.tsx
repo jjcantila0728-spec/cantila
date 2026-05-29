@@ -286,9 +286,9 @@ export default function LiveDashboardTiles({
         </div>
         {recentDeployments.length === 0 ? (
           <div className="px-5 py-8 text-center text-2xs text-ink-faint">
-            No deployments yet. Ship one with{" "}
-            <Link href="/deploy" className="text-ember hover:underline">
-              Chat Deploy
+            No deployments yet. Start one in{" "}
+            <Link href="/chat" className="text-ember hover:underline">
+              Chat
             </Link>
             .
           </div>

@@ -1,18 +1,16 @@
 "use client";
 
 /* ============================================================
-   Chat Deploy — Cantila's front door (`/deploy`).
+   Chat — Cantila's front door (`/chat`).
 
-   A plain chat textarea. The user describes anything they want
-   built; the planner shapes it, the control plane creates the
-   project, and the page redirects into the per-project
-   workspace where the agent team streams the build.
+   The admin's general chat surface: describe anything you want
+   to build, deploy, or change in Cantila. The planner shapes the
+   request, the control plane creates the project, and the page
+   redirects into the per-project workspace where the agent team
+   streams the build.
 
-   The previous incarnation had a suggestions grid, an
-   attach-files affordance and a plan-preview block; those
-   moved out in favour of a cleaner, LLM-chat feel — empty
-   composer in the center, conversation accrues above it once
-   the user starts typing.
+   A plain chat textarea — empty composer in the center, the
+   conversation accrues above it once the user starts typing.
    ============================================================ */
 
 import { useEffect, useRef, useState } from "react";
@@ -44,7 +42,7 @@ type Bubble =
   | { kind: "user"; text: string }
   | { kind: "agent"; text: string; plan?: ApiDeployPlan };
 
-export default function ChatDeploy() {
+export default function Chat() {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
@@ -167,10 +165,10 @@ export default function ChatDeploy() {
         {empty ? (
           <div className="text-center">
             <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-              Describe it. Cantila builds it.
+              Chat to build, deploy, or change anything.
             </h1>
             <p className="mt-2 text-sm text-ink-dim">
-              One chat creates a complete project — code, media, database, domain.
+              Describe what you want — Cantila plans it, builds it, and ships it.
             </p>
           </div>
         ) : (
@@ -196,7 +194,7 @@ export default function ChatDeploy() {
                 }
               }}
               rows={1}
-              placeholder="Describe anything to build — site, app, API, agent…"
+              placeholder="Build an app, deploy a change, or tell Cantila what to do…"
               className="max-h-32 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-ink outline-none placeholder:text-ink-faint"
             />
             <button
@@ -209,7 +207,7 @@ export default function ChatDeploy() {
               ) : (
                 <CornerDownLeft className="h-4 w-4" strokeWidth={2.4} />
               )}
-              Ship
+              Send
             </button>
           </div>
           <p className="mt-2 flex items-center justify-center gap-1.5 text-2xs text-ink-faint">

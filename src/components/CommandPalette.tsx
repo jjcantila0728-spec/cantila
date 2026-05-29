@@ -50,13 +50,13 @@ interface Cmd {
 
 const ACTION_CMDS: Cmd[] = [
   {
-    id: "act-deploy",
+    id: "act-chat",
     group: "Actions",
-    title: "New deploy",
-    subtitle: "Ship an app from one chat",
+    title: "New chat",
+    subtitle: "Build, deploy, or change anything",
     icon: Rocket,
-    href: "/deploy",
-    keywords: "create ship build chat deploy new launch",
+    href: "/chat",
+    keywords: "create ship build chat deploy new launch change admin",
   },
   {
     id: "act-project",

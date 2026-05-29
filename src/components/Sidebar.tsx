@@ -56,7 +56,7 @@ export const NAV: { heading: string; items: NavItem[] }[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/projects", label: "Projects", icon: Boxes },
-      { href: "/deploy", label: "Chat Deploy", icon: Sparkles },
+      { href: "/chat", label: "Chat", icon: Sparkles },
       { href: "/monitoring", label: "Monitoring", icon: Gauge },
       { href: "/capacity", label: "Capacity", icon: Server },
       { href: "/nodes", label: "Nodes", icon: HardDrive },
@@ -189,12 +189,12 @@ export function SidebarContent({
       {/* deploy CTA */}
       <div className="px-3 pt-4">
         <Link
-          href="/deploy"
+          href="/chat"
           onClick={onNavigate}
           className="group flex items-center gap-2 rounded-lg bg-ember px-3 py-2.5 text-sm font-semibold text-[#1a0e08] shadow-[0_8px_24px_-10px_rgba(255,106,61,0.7)] transition-all hover:bg-ember-bright"
         >
           <Rocket className="h-4 w-4" strokeWidth={2.4} />
-          New deploy
+          New chat
           <ChevronRight className="ml-auto h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>

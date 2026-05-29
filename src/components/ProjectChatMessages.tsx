@@ -3,7 +3,7 @@
 /* ============================================================
    Shared chat message renderer.
 
-   The deploy chat (`/deploy`) and the per-project chat
+   The front-door chat (`/chat`) and the per-project chat
    (`/@handle/<name>`) both render the same message shapes —
    user turns, agent turns, op cards (with optional log lines
    and asset previews), and result cards. This module is the

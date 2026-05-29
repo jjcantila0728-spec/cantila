@@ -34,7 +34,7 @@ const WWW_HOST = `www.${PUBLIC_HOST}`;
 const CONSOLE_ONLY_PREFIXES = [
   "/dashboard",
   "/projects",
-  "/deploy",
+  "/chat",
   "/templates",
   "/domains",
   "/team",
@@ -102,6 +102,23 @@ const PUBLIC_AUTH_PREFIXES = [
   ...PUBLIC_ONLY_PREFIXES, // exact match too (e.g. "/pricing")
 ];
 
+/** Legacy path redirects (permanent). `/deploy` was renamed to `/chat`
+ *  in v1.18.1 — the page is the admin's general chat front door, not just
+ *  a deploy funnel — so old bookmarks and muscle memory still resolve. */
+const LEGACY_PREFIX_REDIRECTS: Record<string, string> = {
+  "/deploy": "/chat",
+};
+
+/** Returns the rewritten pathname if `pathname` matches a legacy prefix
+ *  (exact or `/legacy/<rest>`), else null. */
+function legacyRedirect(pathname: string): string | null {
+  for (const [from, to] of Object.entries(LEGACY_PREFIX_REDIRECTS)) {
+    if (pathname === from) return to;
+    if (pathname.startsWith(from + "/")) return to + pathname.slice(from.length);
+  }
+  return null;
+}
+
 function hostIsLocal(host: string): boolean {
   const h = host.split(":")[0];
   return (
@@ -160,6 +177,15 @@ function passWithPath(req: NextRequest, pathname: string): NextResponse {
 export function middleware(req: NextRequest) {
   const host = (req.headers.get("host") ?? "").toLowerCase();
   const { pathname, search } = req.nextUrl;
+
+  // Legacy path renames (e.g. /deploy → /chat) — redirect on any host,
+  // before host rerouting and the auth gate, preserving the query string.
+  const renamed = legacyRedirect(pathname);
+  if (renamed) {
+    const url = req.nextUrl.clone();
+    url.pathname = renamed;
+    return NextResponse.redirect(url, 308);
+  }
 
   // Local dev — skip host rerouting, only enforce the auth gate.
   if (hostIsLocal(host)) {

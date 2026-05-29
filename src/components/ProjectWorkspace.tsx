@@ -58,7 +58,7 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
   const [tab, setTab] = useState<Tab>("chat");
   const [pendingAssets, setPendingAssets] = useState<ApiProjectAsset[]>([]);
 
-  /* The build prompt is stashed in sessionStorage by /deploy right before
+  /* The build prompt is stashed in sessionStorage by /chat right before
    *  the redirect — we read it once and clear it so a refresh doesn't
    *  re-kick the build. */
   const initialBuildPrompt = useMemo(() => {

@@ -25,7 +25,7 @@ const CONSOLE_HOST =
 const CONSOLE_ONLY_PREFIXES = [
   "/dashboard",
   "/projects",
-  "/deploy",
+  "/chat",
   "/templates",
   "/domains",
   "/team",

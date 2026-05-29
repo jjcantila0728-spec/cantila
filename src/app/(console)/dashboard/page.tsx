@@ -146,11 +146,11 @@ export default function DashboardPage() {
         lead="Everything you've shipped, in one control surface — projects, deploys, traffic and the fleet beneath them."
         actions={
           <Link
-            href="/deploy"
+            href="/chat"
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-semibold text-[#1a0e08] shadow-[0_8px_24px_-10px_rgba(255,106,61,0.7)] transition-colors hover:bg-ember-bright"
           >
             <Rocket className="h-4 w-4" strokeWidth={2.4} />
-            New deploy
+            New chat
           </Link>
         }
       />

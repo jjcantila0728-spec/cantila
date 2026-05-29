@@ -97,7 +97,7 @@ function TemplateCard({
           </button>
         ) : (
           <Link
-            href="/deploy"
+            href="/chat"
             className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3 text-2xs font-semibold text-ink transition-colors hover:border-ember/50 hover:bg-ember/10 hover:text-ember"
           >
             <Rocket className="h-3.5 w-3.5" />
@@ -265,7 +265,7 @@ export default function TemplatesView() {
                   {inner}
                 </button>
               ) : (
-                <Link key={t.id} href="/deploy" className={className}>
+                <Link key={t.id} href="/chat" className={className}>
                   {inner}
                 </Link>
               );
