@@ -60,7 +60,7 @@ export default function Topbar() {
         </span>
 
         <a
-          href="https://docs.cantila.app"
+          href="/docs"
           className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-ink-dim hover:bg-surface-3 hover:text-ink sm:inline-flex"
         >
           <BookOpen className="h-4 w-4" />
