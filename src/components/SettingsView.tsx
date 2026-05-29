@@ -15,6 +15,7 @@ import {
   UserCog,
 } from "lucide-react";
 import { PageHeader, Pill, Button } from "@/components/ui";
+import { Avatar } from "@/components/Avatar";
 import { CopyField } from "@/components/CopyButton";
 import Modal, { Field, inputClass } from "@/components/Modal";
 import { ACCOUNT } from "@/lib/mock-data";
@@ -531,6 +532,36 @@ export default function SettingsView() {
                 <Check className="h-3 w-3" />
                 Authed
               </Pill>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* your profile — the signed-in user (session callers only) */}
+      {liveMode === true && me?.authenticated && me.user && (
+        <section>
+          <h2 className="kv mb-3 text-ink-dim">Your profile</h2>
+          <div className="panel flex items-center gap-3.5 p-5">
+            <Avatar
+              url={me.user.avatarUrl}
+              name={me.user.name || me.user.email}
+              size={40}
+            />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium text-ink">
+                {me.user.name}
+              </div>
+              <div className="truncate font-mono text-2xs text-ink-faint">
+                {me.user.email}
+              </div>
+            </div>
+            {me.user.emailVerifiedAt ? (
+              <Pill tone="live">
+                <Check className="h-3 w-3" />
+                Verified
+              </Pill>
+            ) : (
+              <Pill tone="neutral">Unverified</Pill>
             )}
           </div>
         </section>

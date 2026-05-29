@@ -2073,6 +2073,8 @@ export type ApiWhoami =
         email: string;
         name: string;
         emailVerifiedAt: string | null;
+        /** Profile image (Google/GitHub OAuth or uploaded), or null. */
+        avatarUrl?: string | null;
       } | null;
     };
 
