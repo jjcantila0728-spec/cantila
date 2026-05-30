@@ -83,6 +83,44 @@ export default function ProjectFileTree({ projectId }: { projectId: string }) {
 
   const dirty = file !== null && draft !== file.content;
 
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+
+  const save = useCallback(async () => {
+    if (!file || !selected || !dirty) return;
+    setSaving(true);
+    setSaveErr(null);
+    try {
+      const res = await builderApi.putProjectFile(projectId, {
+        path: selected,
+        content: draft,
+        sha: file.sha,
+      });
+      setFile({ content: draft, sha: res.sha, encoding: "utf-8" });
+    } catch (e) {
+      const msg =
+        e instanceof ApiError && e.status === 409
+          ? "Can't save — file changed upstream or repo not writable. Reload the file."
+          : e instanceof Error
+            ? e.message
+            : "save failed";
+      setSaveErr(msg);
+    } finally {
+      setSaving(false);
+    }
+  }, [file, selected, dirty, draft, projectId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void save();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [save]);
+
   if (flat === null) {
     return (
       <div className="flex h-full items-center justify-center gap-2 text-sm text-ink-faint">
@@ -126,11 +164,23 @@ export default function ProjectFileTree({ projectId }: { projectId: string }) {
               <FileIcon className="h-3.5 w-3.5" />
               <span className="truncate">{selected}</span>
               {dirty && <span className="h-1.5 w-1.5 rounded-full bg-ember" title="unsaved" />}
+              <button
+                onClick={() => void save()}
+                disabled={!dirty || saving}
+                className="ml-auto inline-flex h-6 items-center gap-1 rounded bg-ember px-2 text-2xs font-semibold text-[#1a0e08] disabled:opacity-40"
+              >
+                {saving ? "Saving…" : "Save"}
+              </button>
             </>
           ) : (
             <span>Select a file</span>
           )}
         </div>
+        {saveErr && (
+          <div className="border-b border-red-500/30 bg-red-500/10 px-3 py-1 text-2xs text-red-300">
+            {saveErr}
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-auto">
           {loadingFile ? (
             <div className="flex items-center gap-2 p-3 text-sm text-ink-faint">
