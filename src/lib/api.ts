@@ -239,6 +239,12 @@ export const api = {
   getProject: (projectId: string) =>
     request<ApiProjectDetail>(`/projects/${encodeURIComponent(projectId)}`),
 
+  deleteProject: (projectId: string) =>
+    request<{ ok: true; slug: string }>(
+      `/projects/${encodeURIComponent(projectId)}`,
+      { method: "DELETE" },
+    ),
+
   deploy: (
     projectId: string,
     input: { trigger?: ApiDeployTrigger; source?: { kind: "git" | "upload" | "chat"; ref?: string } } = {},
