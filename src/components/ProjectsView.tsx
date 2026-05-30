@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Rocket,
@@ -11,6 +11,8 @@ import {
   Search,
   Zap,
   Loader2,
+  MoreHorizontal,
+  Trash2,
 } from "lucide-react";
 import {
   PageHeader,
@@ -169,7 +171,68 @@ function liveProjectToDisplay(p: ApiProject): Project & { live: true; liveId: st
 
 type DisplayProject = Project & { live?: true; liveId?: string };
 
-function ProjectCard({ p, handle }: { p: DisplayProject; handle: string | null }) {
+function ProjectCardMenu({ onDelete }: { onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  return (
+    <div ref={ref} className="absolute right-3 top-3 z-10">
+      <button
+        type="button"
+        aria-label="Project actions"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((o) => !o);
+        }}
+        className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-surface-2 text-ink-dim transition-colors hover:border-ink-faint hover:text-ink"
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 w-40 overflow-hidden rounded-lg border border-border bg-surface shadow-lift">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setOpen(false);
+              onDelete();
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-left text-2xs font-medium text-down transition-colors hover:bg-down/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete project
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectCard({
+  p,
+  handle,
+  onDelete,
+}: {
+  p: DisplayProject;
+  handle: string | null;
+  onDelete?: (p: DisplayProject) => void;
+}) {
   // Live projects always go through the handle-prefixed route. While
   // the handle is still loading we render the card without a link
   // rather than fall back to the deprecated /projects/live/[id] form.
@@ -180,12 +243,13 @@ function ProjectCard({ p, handle }: { p: DisplayProject; handle: string | null }
     : ORIGINAL_IDS.has(p.id)
       ? `/projects/${p.id}`
       : undefined;
+  const showMenu = Boolean(p.live && p.liveId && onDelete);
   const cpuNow = Math.round(p.metrics.cpu[p.metrics.cpu.length - 1]);
   const dimmed = p.status === "sleeping" || p.status === "paused";
 
   const body = (
     <>
-      <div className="flex items-start gap-3">
+      <div className={cx("flex items-start gap-3", showMenu && "pr-7")}>
         <RuntimeMark runtime={p.runtime} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate font-display text-base font-semibold text-ink">
@@ -253,12 +317,20 @@ function ProjectCard({ p, handle }: { p: DisplayProject; handle: string | null }
     href && "hover:-translate-y-0.5 hover:border-ink-faint hover:shadow-lift",
   );
 
-  return href ? (
+  const card = href ? (
     <Link href={href} className={className}>
       {body}
     </Link>
   ) : (
     <div className={className}>{body}</div>
+  );
+
+  if (!showMenu) return card;
+  return (
+    <div className="relative">
+      {card}
+      <ProjectCardMenu onDelete={() => onDelete!(p)} />
+    </div>
   );
 }
 
@@ -284,6 +356,39 @@ export default function ProjectsView() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DisplayProject | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  function closeDelete() {
+    if (deleting) return;
+    setDeleteTarget(null);
+    setConfirmText("");
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    if (
+      !deleteTarget ||
+      !deleteTarget.liveId ||
+      confirmText !== deleteTarget.name ||
+      deleting
+    )
+      return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.deleteProject(deleteTarget.liveId);
+      setItems((prev) => (prev ?? []).filter((x) => x.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      setConfirmText("");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   /* Detect the control plane. In live mode the page renders the user's real
    * projects only — the mock catalog is offline-demo scaffolding and would
@@ -505,7 +610,16 @@ export default function ProjectsView() {
       ) : filtered.length > 0 ? (
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((p) => (
-            <ProjectCard key={p.id} p={p} handle={handle} />
+            <ProjectCard
+              key={p.id}
+              p={p}
+              handle={handle}
+              onDelete={(proj) => {
+                setDeleteError(null);
+                setConfirmText("");
+                setDeleteTarget(proj);
+              }}
+            />
           ))}
         </div>
       ) : (
@@ -632,6 +746,64 @@ export default function ProjectsView() {
           <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
             {error}
           </p>
+        )}
+      </Modal>
+
+      {/* delete project modal — type-to-confirm */}
+      <Modal
+        open={deleteTarget !== null}
+        onClose={closeDelete}
+        title={deleteTarget ? `Delete ${deleteTarget.name}?` : "Delete project"}
+        description="This permanently removes the app and everything connected to it."
+        footer={
+          <>
+            <Button variant="ghost" onClick={closeDelete} disabled={deleting}>
+              Cancel
+            </Button>
+            <button
+              onClick={confirmDelete}
+              disabled={
+                !deleteTarget ||
+                confirmText !== deleteTarget.name ||
+                deleting
+              }
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-down/40 bg-down/10 px-3.5 text-sm font-semibold text-down transition-colors hover:bg-down/20 disabled:cursor-default disabled:opacity-50"
+            >
+              {deleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+              {deleting ? "Deleting…" : "Delete project"}
+            </button>
+          </>
+        }
+      >
+        {deleteTarget && (
+          <>
+            <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
+              This permanently deletes the project, its database, domains,
+              mailboxes, and phone number. This cannot be undone.
+            </p>
+            <Field label={`Type "${deleteTarget.name}" to confirm`}>
+              <input
+                autoFocus
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && confirmText === deleteTarget.name)
+                    confirmDelete();
+                }}
+                placeholder={deleteTarget.name}
+                className={inputClass}
+              />
+            </Field>
+            {deleteError && (
+              <p className="rounded-md border border-down/30 bg-down/5 px-3 py-2 text-2xs text-down">
+                {deleteError}
+              </p>
+            )}
+          </>
         )}
       </Modal>
     </div>
