@@ -828,6 +828,7 @@ export const api = {
   agentsTick: () => request<ApiAgentsSnapshot>("/agents/tick", { method: "POST" }),
   agentsPause: () => request<{ paused: boolean }>("/agents/pause", { method: "POST" }),
   agentsResume: () => request<{ paused: boolean }>("/agents/resume", { method: "POST" }),
+  getAgentOrg: () => request<ApiAgentOrg>("/agents/org"),
 
   /** Owner-only — queue a new agent for the brain. The control plane
    *  persists it as a "proposed" row; the canvas paints it dimmed until
@@ -2287,6 +2288,11 @@ export interface ApiAgentProposalRow {
   createdByEmail: string;
   createdAt: string;
 }
+
+export type ApiAgentSessionStatus = "idle" | "working" | "done" | "failed";
+export interface ApiOrgAgent { id: string; name: string; model: string; description: string; status: ApiAgentSessionStatus; lastAt?: string; }
+export interface ApiOrgDivision { key: string; label: string; agents: ApiOrgAgent[]; }
+export interface ApiAgentOrg { divisions: ApiOrgDivision[]; activeBuilds: number; }
 
 export interface ApiCostRecommendation {
   id: string;
