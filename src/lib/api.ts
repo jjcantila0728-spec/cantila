@@ -2533,6 +2533,17 @@ export interface ApiProjectBrain {
   lastChangeAt?: string;
 }
 
+export interface ApiFileNode {
+  path: string;
+  type: "blob" | "tree";
+  sha: string;
+}
+export interface ApiFileContent {
+  content: string;
+  sha: string;
+  encoding: "utf-8";
+}
+
 export type ProjectStreamEvent =
   | { kind: "plan"; data: ApiDeployPlan }
   | { kind: "agent_message"; agent: string; content: string }
@@ -2589,6 +2600,51 @@ export const builderApi = {
   /** Per-project brain snapshot — summary + counts. */
   getProjectBrain: (projectId: string) =>
     request<ApiProjectBrain>(`/projects/${encodeURIComponent(projectId)}/brain`),
+
+  /** List files in a project's git tree. */
+  getProjectFiles: (projectId: string, ref?: string) =>
+    request<{ files: ApiFileNode[] }>(
+      `/projects/${encodeURIComponent(projectId)}/files${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
+    ),
+
+  /** Get a single file's content from a project. */
+  getProjectFileContent: (projectId: string, path: string, ref?: string) =>
+    request<ApiFileContent>(
+      `/projects/${encodeURIComponent(projectId)}/files/content?path=${encodeURIComponent(path)}${
+        ref ? `&ref=${encodeURIComponent(ref)}` : ""
+      }`,
+    ),
+
+  /** Create or update a file in a project. */
+  putProjectFile: (
+    projectId: string,
+    input: { path: string; content: string; sha?: string; message?: string },
+  ) =>
+    request<{ commitSha: string; sha: string }>(
+      `/projects/${encodeURIComponent(projectId)}/files/content`,
+      { method: "PUT", body: JSON.stringify(input) },
+    ),
+
+  /** Delete a file from a project. */
+  deleteProjectFile: (projectId: string, path: string, sha: string) =>
+    request<{ commitSha: string }>(
+      `/projects/${encodeURIComponent(projectId)}/files/content?path=${encodeURIComponent(
+        path,
+      )}&sha=${encodeURIComponent(sha)}`,
+      { method: "DELETE" },
+    ),
+
+  /** List running instances for a project. */
+  getProjectInstances: (projectId: string) =>
+    request<{ instances: { id: string; status: string; cpuPct?: number }[] }>(
+      `/projects/${encodeURIComponent(projectId)}/instances`,
+    ),
+
+  /** Get recent metrics samples for a project. */
+  getProjectMetrics: (projectId: string) =>
+    request<{ samples: { cpuPct: number; memPct: number; rps: number; at: string }[] }>(
+      `/projects/${encodeURIComponent(projectId)}/metrics`,
+    ),
 };
 
 /** Stream the orchestrator's build for a freshly-created project. The
