@@ -70,10 +70,14 @@ export default function ProjectFileTree({ projectId }: { projectId: string }) {
     async (path: string) => {
       setSelected(path);
       setLoadingFile(true);
+      setSaveErr(null);
       try {
         const c = await builderApi.getProjectFileContent(projectId, path);
         setFile(c);
         setDraft(c.content);
+      } catch (e) {
+        setFile(null);
+        setSaveErr(e instanceof Error ? `Couldn't open file: ${e.message}` : "Couldn't open file");
       } finally {
         setLoadingFile(false);
       }
@@ -186,7 +190,7 @@ export default function ProjectFileTree({ projectId }: { projectId: string }) {
             <div className="flex items-center gap-2 p-3 text-sm text-ink-faint">
               <Loader2 className="h-4 w-4 animate-spin" /> Opening…
             </div>
-          ) : selected ? (
+          ) : (selected && file) ? (
             <CodeMirror
               value={draft}
               extensions={langFor(selected)}
