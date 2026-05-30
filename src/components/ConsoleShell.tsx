@@ -34,6 +34,8 @@ type NavState = {
   /* desktop collapse (lg+) */
   collapsed: boolean;
   toggleCollapsed: () => void;
+  /** Force the desktop sidebar into the collapsed state. */
+  collapse: () => void;
 };
 
 const NavCtx = createContext<NavState>({
@@ -42,6 +44,7 @@ const NavCtx = createContext<NavState>({
   close: () => {},
   collapsed: true,
   toggleCollapsed: () => {},
+  collapse: () => {},
 });
 
 export const useNavDrawer = () => useContext(NavCtx);
@@ -77,6 +80,14 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
       return next;
     });
   }, []);
+  const collapse = useCallback(() => {
+    setCollapsed(true);
+    try {
+      window.localStorage.setItem("cantila:nav-collapsed", "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   // Lock body scroll + allow Escape to close while the drawer is open.
   useEffect(() => {
@@ -99,6 +110,7 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
     close: () => setOpen(false),
     collapsed,
     toggleCollapsed,
+    collapse,
   };
 
   return (
