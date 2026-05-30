@@ -27,6 +27,7 @@ import {
 } from "@/lib/api";
 import AgentsCanvas from "@/components/agents/AgentsCanvas";
 import CantilaBrainChat from "@/components/agents/CantilaBrainChat";
+import FleetOrgChart from "@/components/agents/FleetOrgChart";
 import SuggestionRail from "@/components/agents/SuggestionRail";
 import {
   AGENT_TONE,
@@ -184,6 +185,11 @@ export default function AgentsView() {
           </div>
         }
       />
+
+      <section>
+        <h2 className="kv mb-3 text-ink-dim">The whole operation</h2>
+        <FleetOrgChart />
+      </section>
 
       {/* hub-and-spoke canvas — brain in the middle, agents radiating out.
           Owner gets the chat + suggestion rail alongside; everyone else sees
