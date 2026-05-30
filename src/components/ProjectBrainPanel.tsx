@@ -8,16 +8,38 @@
    ============================================================ */
 
 import { useEffect, useState } from "react";
-import { Brain, RefreshCw, MessageSquare, Image as ImageIcon, Clock } from "lucide-react";
+import { Brain, RefreshCw, MessageSquare, Image as ImageIcon, Clock, Cpu } from "lucide-react";
 import { builderApi, type ApiProjectBrain } from "../lib/api";
+import ProjectLogsPanel from "./ProjectLogsPanel";
 
 export default function ProjectBrainPanel({ projectId }: { projectId: string }) {
   const [brain, setBrain] = useState<ApiProjectBrain | null>(null);
   const [loading, setLoading] = useState(false);
+  const [instances, setInstances] = useState<{ id: string; status: string }[] | null>(null);
+  const [load, setLoad] = useState<number | null>(null);
 
   useEffect(() => {
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  useEffect(() => {
+    let alive = true;
+    void builderApi
+      .getProjectInstances(projectId)
+      .then((r) => alive && setInstances(r.instances))
+      .catch(() => {});
+    void builderApi
+      .getProjectMetrics(projectId)
+      .then((r) => {
+        if (!alive || !r.samples.length) return;
+        const last = r.samples[r.samples.length - 1];
+        if (typeof last?.cpuPct === "number") setLoad(last.cpuPct);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
   }, [projectId]);
 
   async function refresh() {
@@ -87,6 +109,23 @@ export default function ProjectBrainPanel({ projectId }: { projectId: string }) 
           Last change {new Date(brain.lastChangeAt).toLocaleString()}
         </div>
       )}
+
+      <div className="mt-4 rounded-lg border border-border bg-surface-2 p-3">
+        <div className="mb-2 flex items-center gap-2 text-2xs font-semibold uppercase tracking-wide text-ink-dim">
+          <Cpu className="h-3.5 w-3.5 text-ember" /> Compute · autoscale
+        </div>
+        <div className="flex items-center gap-4 text-sm text-ink">
+          <span>{instances ? `${instances.length} instance${instances.length === 1 ? "" : "s"}` : "—"}</span>
+          <span className="text-ink-dim">·</span>
+          <span>{load != null ? `${Math.round(load)}% load` : "load —"}</span>
+          <span className="ml-auto rounded bg-bg px-1.5 py-0.5 text-2xs text-ink-dim">auto</span>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 text-2xs font-semibold uppercase tracking-wide text-ink-dim">Logs</div>
+        <ProjectLogsPanel projectId={projectId} />
+      </div>
     </div>
   );
 }
