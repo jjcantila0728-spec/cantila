@@ -2,12 +2,13 @@
 
 /* ============================================================
    ProjectWorkspace — the home of a single project under
-   /@handle/<name>. A chat-first layout:
-   - Left: ProjectChat (the agent team)
-   - Right: a resizable rail whose horizontally-scrollable tab
-     strip hosts the operational surfaces — Overview (default) /
-     Assets / Brain / Deploys / Logs / Environment / Domains /
-     Settings — all wired to the real control-plane `api`.
+   /@handle/<name>. A VS Code-style 4-column shell:
+   - Far left: ProjectFileTree (the project's asset/file tree)
+   - Center:   ProjectChat (the agent team)
+   - Right:    PreviewColumn (live preview + ops tabs)
+   Both side columns are independently resizable via Splitter,
+   with widths persisted to localStorage. A slim toolbar sits
+   on top; project settings open in a modal.
 
    The workspace also hosts the build-on-arrival flow: when the
    route is reached with `?build=1`, the prompt is read from
@@ -16,22 +17,14 @@
    work.
    ============================================================ */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   ExternalLink,
   Loader2,
   AlertCircle,
-  LayoutDashboard,
-  Image as ImageIcon,
-  Brain,
-  Rocket,
-  ScrollText,
-  KeyRound,
-  Globe,
-  SlidersHorizontal,
+  Settings,
 } from "lucide-react";
 import {
   builderApi,
@@ -40,29 +33,14 @@ import {
 } from "../lib/api";
 import { cx, StatusBadge } from "./ui";
 import ProjectChat from "./ProjectChat";
-import ProjectAssetGallery from "./ProjectAssetGallery";
-import ProjectBrainPanel from "./ProjectBrainPanel";
-import ProjectOverviewPanel from "./ProjectOverviewPanel";
-import ProjectDeploysPanel from "./ProjectDeploysPanel";
-import ProjectLogsPanel from "./ProjectLogsPanel";
-import ProjectEnvPanel from "./ProjectEnvPanel";
-import ProjectDomainsPanel from "./ProjectDomainsPanel";
 import ProjectSettingsPanel from "./ProjectSettingsPanel";
+import Splitter from "./workspace/Splitter";
+import ProjectFileTree from "./workspace/ProjectFileTree";
+import PreviewColumn from "./workspace/PreviewColumn";
+import { useNavDrawer } from "./ConsoleShell";
 
-type Tab =
-  | "overview"
-  | "assets"
-  | "brain"
-  | "deploys"
-  | "logs"
-  | "env"
-  | "domains"
-  | "settings";
-
-const RAIL_DEFAULT = 416; // 26rem
-const RAIL_MIN = 352; // 22rem
-const RAIL_MAX = 768; // 48rem
-const RAIL_KEY = "cantila:workspace-rail-w";
+const TREE_DEFAULT = 280, TREE_MIN = 200, TREE_MAX = 480, TREE_KEY = "cantila:workspace-tree-w";
+const PREVIEW_DEFAULT = 480, PREVIEW_MIN = 360, PREVIEW_MAX = 820, PREVIEW_KEY = "cantila:workspace-preview-w";
 
 interface Props {
   handle: string;
@@ -76,57 +54,24 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
 
   const [detail, setDetail] = useState<ApiProjectDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("overview");
-  const [pendingAssets, setPendingAssets] = useState<ApiProjectAsset[]>([]);
 
-  /* Resizable rail width (lg+). Read from localStorage after mount. */
-  const [railW, setRailW] = useState(RAIL_DEFAULT);
+  const { collapse } = useNavDrawer();
+  useEffect(() => { collapse(); }, [collapse]);
+
+  const [treeW, setTreeW] = useState(TREE_DEFAULT);
+  const [previewW, setPreviewW] = useState(PREVIEW_DEFAULT);
+  const [showSettings, setShowSettings] = useState(false);
+
   useEffect(() => {
     try {
-      const v = window.localStorage.getItem(RAIL_KEY);
-      if (v) {
-        const n = Number(v);
-        if (!Number.isNaN(n)) setRailW(Math.min(RAIL_MAX, Math.max(RAIL_MIN, n)));
-      }
-    } catch {
-      /* ignore */
-    }
+      const t = Number(window.localStorage.getItem(TREE_KEY));
+      if (!Number.isNaN(t) && t) setTreeW(Math.min(TREE_MAX, Math.max(TREE_MIN, t)));
+      const p = Number(window.localStorage.getItem(PREVIEW_KEY));
+      if (!Number.isNaN(p) && p) setPreviewW(Math.min(PREVIEW_MAX, Math.max(PREVIEW_MIN, p)));
+    } catch { /* ignore */ }
   }, []);
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(RAIL_KEY, String(railW));
-    } catch {
-      /* ignore */
-    }
-  }, [railW]);
-
-  const railWRef = useRef(railW);
-  railWRef.current = railW;
-  const startResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = railWRef.current;
-    const el = e.currentTarget as HTMLElement;
-    el.setPointerCapture?.(e.pointerId);
-    const onMove = (ev: PointerEvent) => {
-      const next = Math.min(
-        RAIL_MAX,
-        Math.max(RAIL_MIN, startW - (ev.clientX - startX)),
-      );
-      setRailW(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-      el.releasePointerCapture?.(e.pointerId);
-      document.body.style.userSelect = "";
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
-    document.body.style.userSelect = "none";
-  }, []);
+  useEffect(() => { try { window.localStorage.setItem(TREE_KEY, String(treeW)); } catch {} }, [treeW]);
+  useEffect(() => { try { window.localStorage.setItem(PREVIEW_KEY, String(previewW)); } catch {} }, [previewW]);
 
   /* The build prompt is stashed in sessionStorage by /chat right before
    *  the redirect — we read it once and clear it so a refresh doesn't
@@ -162,8 +107,8 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
     void load();
   }, [load]);
 
-  const onAssetCreated = useCallback((asset: ApiProjectAsset) => {
-    setPendingAssets((prev) => [...prev, asset]);
+  const onAssetCreated = useCallback((_asset: ApiProjectAsset) => {
+    /* assets surface inside PreviewColumn/file-tree now; no local buffer. */
   }, []);
 
   if (error) {
@@ -199,201 +144,66 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
   const liveUrl = liveDomain ? `https://${liveDomain.hostname}` : null;
 
   return (
-    <div className="flex h-[calc(100vh-9rem)] min-h-[600px] flex-col gap-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="kv mb-1 flex items-center gap-2 text-ember">
-            <Link href="/projects" className="hover:underline">
-              Projects
-            </Link>
-            <span className="text-ink-faint">/</span>
-            <Link href={`/`} className="hover:underline">
-              @{handle}
-            </Link>
-          </div>
-          <h1 className="flex items-center gap-3 font-display text-2xl font-semibold tracking-tight text-ink">
-            {project.name}
-            <StatusBadge status={project.status} />
-          </h1>
-          <p className="mt-1 text-sm text-ink-dim">
-            {project.runtime} · {project.region} · {project.slug}.cantila.app
-          </p>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex h-[calc(100vh-7rem)] min-h-[600px] flex-col">
+      {/* slim toolbar */}
+      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
+        <span className={cx("h-2 w-2 rounded-full", project.status === "live" ? "bg-emerald-400" : "bg-ink-faint")} />
+        <span className="font-display text-sm font-semibold text-ink">{project.name}</span>
+        <StatusBadge status={project.status} />
+        <div className="ml-auto flex items-center gap-1">
           {liveUrl && (
-            <a
-              href={liveUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-semibold text-[#1a0e08] hover:bg-ember-bright"
-            >
-              <ExternalLink className="h-4 w-4" />
-              Open
+            <a href={liveUrl} target="_blank" rel="noreferrer"
+               className="inline-flex h-7 items-center gap-1 rounded-lg bg-ember px-2.5 text-2xs font-semibold text-[#1a0e08] hover:bg-ember-bright">
+              <ExternalLink className="h-3.5 w-3.5" /> Open
             </a>
           )}
-          <Link
-            href={`/projects/live/${project.id}`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface-2 px-3.5 text-sm font-medium text-ink hover:border-ink-faint"
-          >
-            Full console
-          </Link>
+          <button onClick={() => setShowSettings(true)}
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-dim hover:bg-surface-2 hover:text-ink" title="Settings">
+            <Settings className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
-      {/* Body — split layout on desktop, tabs on mobile */}
-      <div className="flex flex-1 min-h-0 gap-0">
-        <div className="hidden flex-1 min-h-0 flex-col panel overflow-hidden p-0 lg:flex">
-          <ProjectChat
-            projectId={project.id}
-            projectName={project.name}
-            initialBuildPrompt={initialBuildPrompt}
-            onAssetCreated={onAssetCreated}
-          />
+      {/* 4-column body (lg+) */}
+      <div className="hidden min-h-0 flex-1 lg:flex">
+        <div className="min-h-0 shrink-0 overflow-hidden rounded-xl border border-border bg-surface" style={{ width: treeW }}>
+          <ProjectFileTree projectId={project.id} />
         </div>
+        <Splitter side="left" width={treeW} min={TREE_MIN} max={TREE_MAX} defaultWidth={TREE_DEFAULT} onChange={setTreeW} />
 
-        {/* drag handle */}
-        <div
-          onPointerDown={startResize}
-          onDoubleClick={() => setRailW(RAIL_DEFAULT)}
-          role="separator"
-          aria-orientation="vertical"
-          title="Drag to resize · double-click to reset"
-          className="hidden lg:flex w-3 shrink-0 cursor-col-resize items-center justify-center group"
-        >
-          <span className="h-10 w-1 rounded-full bg-border transition-colors group-hover:bg-ember" />
+        <div className="flex min-h-0 flex-1 flex-col panel overflow-hidden p-0">
+          <ProjectChat projectId={project.id} projectName={project.name}
+                       initialBuildPrompt={initialBuildPrompt} onAssetCreated={onAssetCreated} />
         </div>
+        <Splitter side="right" width={previewW} min={PREVIEW_MIN} max={PREVIEW_MAX} defaultWidth={PREVIEW_DEFAULT} onChange={setPreviewW} />
 
-        <div
-          className="hidden shrink-0 flex-col gap-3 lg:flex"
-          style={{ width: railW }}
-        >
-          <RightTabs tab={tab} setTab={setTab} />
-          <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-border bg-surface p-4">
-            <RailContent
-              tab={tab}
-              detail={detail}
-              pendingAssets={pendingAssets}
-              onRefresh={() => load({ silent: true })}
-            />
+        <div className="min-h-0 shrink-0" style={{ width: previewW }}>
+          <PreviewColumn detail={detail} liveUrl={liveUrl} onRefresh={() => load({ silent: true })} />
+        </div>
+      </div>
+
+      {/* mobile fallback — chat over preview, no file-tree */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:hidden">
+        <div className="min-h-0 flex-1 panel overflow-hidden p-0">
+          <ProjectChat projectId={project.id} projectName={project.name}
+                       initialBuildPrompt={initialBuildPrompt} onAssetCreated={onAssetCreated} />
+        </div>
+        <div className="min-h-0 flex-1">
+          <PreviewColumn detail={detail} liveUrl={liveUrl} onRefresh={() => load({ silent: true })} />
+        </div>
+      </div>
+
+      {showSettings && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSettings(false)}>
+          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-display text-lg font-semibold text-ink">Project settings</h2>
+              <button onClick={() => setShowSettings(false)} className="text-ink-dim hover:text-ink">✕</button>
+            </div>
+            <ProjectSettingsPanel detail={detail} onRefresh={() => load({ silent: true })} />
           </div>
         </div>
-
-        {/* mobile — stacked */}
-        <div className="flex flex-1 min-h-0 flex-col gap-3 lg:hidden">
-          <RightTabs tab={tab} setTab={setTab} mobile />
-          <div className="flex-1 min-h-0 overflow-y-auto">
-            <RailContent
-              tab={tab}
-              detail={detail}
-              pendingAssets={pendingAssets}
-              onRefresh={() => load({ silent: true })}
-              mobileChat={
-                <div className="flex-1 min-h-0 panel overflow-hidden p-0">
-                  <ProjectChat
-                    projectId={project.id}
-                    projectName={project.name}
-                    initialBuildPrompt={initialBuildPrompt}
-                    onAssetCreated={onAssetCreated}
-                  />
-                </div>
-              }
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const TAB_DEFS: { key: Tab; label: string; icon: typeof LayoutDashboard }[] = [
-  { key: "overview", label: "Overview", icon: LayoutDashboard },
-  { key: "assets", label: "Assets", icon: ImageIcon },
-  { key: "brain", label: "Brain", icon: Brain },
-  { key: "deploys", label: "Deploys", icon: Rocket },
-  { key: "logs", label: "Logs", icon: ScrollText },
-  { key: "env", label: "Env", icon: KeyRound },
-  { key: "domains", label: "Domains", icon: Globe },
-  { key: "settings", label: "Settings", icon: SlidersHorizontal },
-];
-
-function RightTabs({
-  tab,
-  setTab,
-  mobile,
-}: {
-  tab: Tab;
-  setTab: (t: Tab) => void;
-  mobile?: boolean;
-}) {
-  return (
-    <div className="flex gap-1 overflow-x-auto rounded-xl border border-border bg-surface-2 p-1">
-      {TAB_DEFS.map(({ key, label, icon: Icon }) => (
-        <button
-          key={key}
-          onClick={() => setTab(key)}
-          title={label}
-          className={cx(
-            "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-2xs font-medium transition-colors",
-            tab === key ? "bg-bg text-ink shadow-sm" : "text-ink-dim hover:text-ink",
-          )}
-        >
-          <Icon className="h-3.5 w-3.5" />
-          <span className={mobile ? "" : "hidden xl:inline"}>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function RailContent({
-  tab,
-  detail,
-  pendingAssets,
-  onRefresh,
-  mobileChat,
-}: {
-  tab: Tab;
-  detail: ApiProjectDetail | null;
-  pendingAssets: ApiProjectAsset[];
-  onRefresh: () => Promise<void>;
-  mobileChat?: React.ReactNode;
-}) {
-  if (!detail) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-ink-faint">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Loading…
-      </div>
-    );
-  }
-  const projectId = detail.project.id;
-  const panel = (() => {
-    switch (tab) {
-      case "overview":
-        return <ProjectOverviewPanel detail={detail} onRefresh={onRefresh} />;
-      case "assets":
-        return <ProjectAssetGallery projectId={projectId} initialAssets={pendingAssets} />;
-      case "brain":
-        return <ProjectBrainPanel projectId={projectId} />;
-      case "deploys":
-        return <ProjectDeploysPanel detail={detail} onRefresh={onRefresh} />;
-      case "logs":
-        return <ProjectLogsPanel projectId={projectId} />;
-      case "env":
-        return <ProjectEnvPanel projectId={projectId} />;
-      case "domains":
-        return <ProjectDomainsPanel detail={detail} onRefresh={onRefresh} />;
-      case "settings":
-        return <ProjectSettingsPanel detail={detail} onRefresh={onRefresh} />;
-      default:
-        return null;
-    }
-  })();
-  return (
-    <div className="space-y-3">
-      {mobileChat}
-      {panel}
+      )}
     </div>
   );
 }
