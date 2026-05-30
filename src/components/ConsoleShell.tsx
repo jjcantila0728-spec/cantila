@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useState,
@@ -25,23 +26,57 @@ import { cx } from "./ui";
    provider in the React tree, so the Topbar's useNavDrawer() resolves
    to this state.
    ------------------------------------------------------------------ */
-type NavDrawer = { open: boolean; toggle: () => void; close: () => void };
+type NavState = {
+  /* mobile drawer */
+  open: boolean;
+  toggle: () => void;
+  close: () => void;
+  /* desktop collapse (lg+) */
+  collapsed: boolean;
+  toggleCollapsed: () => void;
+};
 
-const NavDrawerCtx = createContext<NavDrawer>({
+const NavCtx = createContext<NavState>({
   open: false,
   toggle: () => {},
   close: () => {},
+  collapsed: true,
+  toggleCollapsed: () => {},
 });
 
-export const useNavDrawer = () => useContext(NavDrawerCtx);
+export const useNavDrawer = () => useContext(NavCtx);
 
-/** A spring-y easing shared by the drawer + content push so they move
- *  in perfect lockstep. */
+/** A spring-y easing that drives only the mobile drawer aside; the content
+ *  wrapper inlines its own transition-[padding,transform]. */
 const PUSH =
   "transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none";
 
 export default function ConsoleShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+
+  // Desktop sidebar collapse (lg+). Default collapsed; persisted so the
+  // choice survives reloads and route changes. Read after mount to avoid
+  // an SSR/localStorage mismatch.
+  const [collapsed, setCollapsed] = useState(true);
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem("cantila:nav-collapsed");
+      if (v !== null) setCollapsed(v === "1");
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed((c) => {
+      const next = !c;
+      try {
+        window.localStorage.setItem("cantila:nav-collapsed", next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, []);
 
   // Lock body scroll + allow Escape to close while the drawer is open.
   useEffect(() => {
@@ -58,14 +93,16 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
     };
   }, [open]);
 
-  const ctx: NavDrawer = {
+  const ctx: NavState = {
     open,
     toggle: () => setOpen((o) => !o),
     close: () => setOpen(false),
+    collapsed,
+    toggleCollapsed,
   };
 
   return (
-    <NavDrawerCtx.Provider value={ctx}>
+    <NavCtx.Provider value={ctx}>
       {/* `overflow-x-clip` swallows the off-canvas content while it's
           pushed, without creating a scroll container (so the Topbar's
           sticky positioning is unaffected). */}
@@ -75,7 +112,7 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
 
         {/* desktop sidebar (lg+) — static, reserves its column via the
             content's lg:pl-[240px] */}
-        <Sidebar />
+        <Sidebar collapsed={collapsed} onToggleCollapse={toggleCollapsed} />
 
         {/* mobile push drawer — same width as the content shift below, so
             sidebar and page meet edge-to-edge with no overlap. */}
@@ -110,18 +147,21 @@ export default function ConsoleShell({ children }: { children: ReactNode }) {
           )}
         />
 
-        {/* page content — pushed right by the drawer width on mobile;
-            untouched on desktop (lg:translate-x-0). */}
+        {/* page content — on desktop the left padding tracks the sidebar
+            width (240px expanded / 64px collapsed), animating in lockstep
+            with the aside so expanding pushes the content right. On mobile
+            it is pushed by the drawer width as before. */}
         <div
           className={cx(
-            "relative z-10 lg:pl-[240px] lg:translate-x-0",
-            PUSH,
+            "relative z-10 lg:translate-x-0",
+            collapsed ? "lg:pl-16" : "lg:pl-[240px]",
+            "transition-[padding,transform] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
             open ? "translate-x-72" : "translate-x-0",
           )}
         >
           {children}
         </div>
       </div>
-    </NavDrawerCtx.Provider>
+    </NavCtx.Provider>
   );
 }
