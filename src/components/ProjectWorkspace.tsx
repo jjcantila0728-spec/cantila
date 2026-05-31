@@ -144,7 +144,7 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
   const liveUrl = liveDomain ? `https://${liveDomain.hostname}` : null;
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[600px] flex-col">
+    <div className="flex h-[calc(100vh-5rem)] min-h-[600px] flex-col">
       {/* slim toolbar */}
       <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
         <span className={cx("h-2 w-2 rounded-full", project.status === "live" ? "bg-emerald-400" : "bg-ink-faint")} />
