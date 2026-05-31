@@ -172,11 +172,23 @@ export default function ProjectChat({
 
   const appendPersisted = useCallback((m: ApiProjectMessage) => {
     if (m.role === "user" && m.kind === "message") {
-      setMessages((prev) =>
-        prev.some((x) => x.id === m.id)
-          ? prev
-          : [...prev, { id: m.id, kind: "user", text: m.content }],
-      );
+      setMessages((prev) => {
+        if (prev.some((x) => x.id === m.id)) return prev; // already have the real row
+        const persisted: ChatMsg = { id: m.id, kind: "user", text: m.content };
+        // Replace a trailing optimistic user bubble with the same text.
+        const last = prev[prev.length - 1];
+        if (
+          last &&
+          last.kind === "user" &&
+          last.id.startsWith("tmp-") &&
+          last.text === m.content
+        ) {
+          const copy = prev.slice();
+          copy[copy.length - 1] = persisted;
+          return copy;
+        }
+        return [...prev, persisted];
+      });
       return;
     }
     // Op cards / agent messages already arrive via the granular events;
