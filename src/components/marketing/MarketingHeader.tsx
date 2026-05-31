@@ -25,6 +25,7 @@ export default function MarketingHeader() {
   }, [open]);
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-light-border/60 bg-light-bg/85 backdrop-blur">
       <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center justify-between gap-6 px-4 sm:px-6 lg:px-9">
         <Link
@@ -74,7 +75,15 @@ export default function MarketingHeader() {
           <Menu className="h-5 w-5" />
         </button>
       </div>
+    </header>
 
+      {/* Mobile menu sheet — rendered OUTSIDE <header> on purpose. The
+          header's `backdrop-blur` makes it the containing block for any
+          `position: fixed` descendant, which would clip this overlay to
+          the 64px bar (the mobile menu rendered but stayed invisible). As
+          a sibling it resolves `inset-0` against the viewport instead —
+          mirroring the Console drawer, which lives at the shell root, not
+          inside its blurred Topbar. */}
       {open && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-light-bg lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
@@ -140,7 +149,7 @@ export default function MarketingHeader() {
           </nav>
         </div>
       )}
-    </header>
+    </>
   );
 }
 

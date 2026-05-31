@@ -46,18 +46,25 @@ const PROVIDER_GLYPH: Record<string, string> = {
 
 export default function ConnectionsView() {
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
-  const [items, setItems] = useState<Connection[]>(mockConnections);
+  // Start empty + loading so we never flash mock data on the live site.
+  // Mock data is the offline fallback only (see the `!ok` branch below).
+  const [items, setItems] = useState<Connection[]>([]);
   const [filter, setFilter] = useState<string>("All");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
     void isControlPlaneLive().then(async (ok) => {
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
-      setLoading(true);
+      if (!ok) {
+        // Control plane unreachable — show the demo data so the page
+        // isn't empty in a local/offline preview.
+        setItems(mockConnections);
+        setLoading(false);
+        return;
+      }
       try {
         const { connections } = await api.listConnections();
         if (!cancelled) {
@@ -143,7 +150,7 @@ export default function ConnectionsView() {
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState />
+        loading ? null : <EmptyState />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((c) => (

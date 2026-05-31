@@ -834,8 +834,14 @@ export default function SettingsView() {
               </p>
 
               <div className="mt-3">
-                <CopyField value="https://mcp.cantila.app/v1" />
+                <CopyField value="https://mcp.cantila.app/v1/mcp" />
               </div>
+
+              <p className="mt-2 text-2xs leading-relaxed text-ink-dim">
+                Authenticate with a Cantila API key — send it as{" "}
+                <span className="font-mono">Authorization: Bearer ctk_…</span>.
+                Create one under API keys.
+              </p>
 
               <div className="mt-3.5">
                 <div className="kv mb-1.5">Exposed tools</div>

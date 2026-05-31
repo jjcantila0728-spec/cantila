@@ -44,10 +44,12 @@ function fromApi(a: ApiAutomation): Automation {
 
 export default function AutomationsView() {
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
-  const [items, setItems] = useState<Automation[]>(mockAutomations);
+  // Start empty + loading so we never flash mock data on the live site.
+  // Mock data is the offline fallback only (see the `!ok` branch below).
+  const [items, setItems] = useState<Automation[]>([]);
   const [filter, setFilter] = useState<KindFilter>("All");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,8 +57,13 @@ export default function AutomationsView() {
     void isControlPlaneLive().then(async (ok) => {
       if (cancelled) return;
       setLiveMode(ok);
-      if (!ok) return;
-      setLoading(true);
+      if (!ok) {
+        // Control plane unreachable — show the demo data so the page
+        // isn't empty in a local/offline preview.
+        setItems(mockAutomations);
+        setLoading(false);
+        return;
+      }
       try {
         const [{ automations }, acct] = await Promise.all([
           api.listAutomations(),
@@ -149,7 +156,7 @@ export default function AutomationsView() {
       )}
 
       {filtered.length === 0 ? (
-        <EmptyState />
+        loading ? null : <EmptyState />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => (
