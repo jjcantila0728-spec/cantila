@@ -153,6 +153,11 @@ export function ChatMessage({
             )}
           </div>
           <div className="mt-0.5 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+            {m.createdAt && (
+              <span className="mr-0.5">
+                <MessageTime at={m.createdAt} />
+              </span>
+            )}
             <CopyButton text={m.text} />
             {actions?.onEditResend && (
               <ToolbarButton
@@ -192,6 +197,7 @@ export function ChatMessage({
               <span className="font-mono text-[0.6rem] uppercase tracking-wider text-ink-faint">
                 {agentMetaResolved.role}
               </span>
+              <MessageTime at={m.createdAt} />
             </div>
           )}
           <div className="text-ink-dim">
