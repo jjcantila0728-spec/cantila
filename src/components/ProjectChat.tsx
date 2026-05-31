@@ -21,11 +21,12 @@
    ============================================================ */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Loader2, RefreshCw } from "lucide-react";
+import { ArrowDown, Loader2, RefreshCw, Menu, Plus } from "lucide-react";
 import {
   builderApi,
   buildStream,
   chatStream,
+  type ApiConversation,
   type ApiProjectMessage,
   type ApiProjectAsset,
   type ProjectStreamCallbacks,
@@ -39,7 +40,11 @@ import { ChatMessage } from "./chat/ChatMessage";
 import { OpCard } from "./chat/OpCard";
 import { FleetStrip, activeAgents } from "./chat/FleetStrip";
 import { ChatComposer, type ChatMode } from "./chat/ChatComposer";
+import { HistoryPanel } from "./chat/HistoryPanel";
 import { ensureAgentOrg, agentMeta } from "./chat/agentMeta";
+
+/** localStorage key for the last-active conversation of a project. */
+const convStorageKey = (projectId: string) => `cantila:chat-conv:${projectId}`;
 
 interface ProjectChatProps {
   projectId: string;
@@ -73,6 +78,43 @@ export default function ProjectChat({
   /** The last (prompt, mode) sent — used by retry. */
   const lastSendRef = useRef<{ text: string; mode: ChatMode } | null>(null);
 
+  /* ---- conversations (multi-thread history) ---- */
+  const [conversations, setConversations] = useState<ApiConversation[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  /** Mirror of conversationId for use inside stream callbacks / microtasks
+   *  that capture stale state. Always the source of truth for stream POSTs. */
+  const conversationIdRef = useRef<string | null>(null);
+  const setConversation = useCallback(
+    (id: string | null) => {
+      conversationIdRef.current = id;
+      setConversationId(id);
+      if (id) {
+        try {
+          localStorage.setItem(convStorageKey(projectId), id);
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    [projectId],
+  );
+
+  const refreshConversations = useCallback(async () => {
+    try {
+      const res = await builderApi.listConversations(projectId);
+      setConversations(res.conversations);
+      return res.conversations;
+    } catch {
+      return [] as ApiConversation[];
+    }
+  }, [projectId]);
+
+  const activeTitle = useMemo(() => {
+    if (conversationId == null) return "New chat";
+    return conversations.find((c) => c.id === conversationId)?.title ?? "Chat";
+  }, [conversationId, conversations]);
+
   /* scroll handling */
   const threadRef = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
@@ -95,24 +137,70 @@ export default function ProjectChat({
     if (atBottom) scrollToBottom("smooth");
   }, [messages, atBottom, scrollToBottom]);
 
-  /* ---- load history once; kick org enrichment (non-blocking) ---- */
+  /** Load a conversation's history into the thread (or the default
+   *  conversation when `cid` is omitted). Returns true on success. */
+  const loadHistory = useCallback(
+    async (cid?: string) => {
+      try {
+        const res = await builderApi.getProjectChat(projectId, cid);
+        setMessages(projectMessagesToChat(res.messages));
+        requestAnimationFrame(() => scrollToBottom("auto"));
+        return true;
+      } catch {
+        // 404 on a brand-new project / conversation is fine — start empty.
+        setMessages([]);
+        return false;
+      }
+    },
+    [projectId, scrollToBottom],
+  );
+
+  /* ---- boot: list conversations, pick the active one, load it ---- */
   useEffect(() => {
     void ensureAgentOrg();
     let cancelled = false;
     (async () => {
+      let list: ApiConversation[] = [];
       try {
-        const res = await builderApi.getProjectChat(projectId);
-        if (cancelled) return;
-        setMessages(projectMessagesToChat(res.messages));
-        requestAnimationFrame(() => scrollToBottom("auto"));
+        const res = await builderApi.listConversations(projectId);
+        list = res.conversations;
       } catch {
-        // 404 on a brand-new project is fine — the chat starts empty.
+        // Conversation endpoint unavailable — fall back to the legacy
+        // single-thread history (default conversation) so we never blank.
+        if (cancelled) return;
+        await loadHistory();
+        return;
+      }
+      if (cancelled) return;
+      setConversations(list);
+
+      // Pick last-active from localStorage, else the most-recent (first).
+      let stored: string | null = null;
+      try {
+        stored = localStorage.getItem(convStorageKey(projectId));
+      } catch {
+        /* ignore */
+      }
+      const pick =
+        (stored && list.some((c) => c.id === stored) ? stored : null) ??
+        list[0]?.id ??
+        null;
+
+      // If an initial build is pending we let that flow own the
+      // conversation; otherwise load the picked thread now.
+      if (!initialBuildPrompt) {
+        setConversation(pick);
+        await loadHistory(pick ?? undefined);
+      } else if (pick) {
+        // Pre-seed the active id so the initial build attaches to it.
+        setConversation(pick);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [projectId, scrollToBottom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   /* ---- kick the initial build if we arrived here from /chat ---- */
   useEffect(() => {
@@ -241,24 +329,38 @@ export default function ProjectChat({
       setRunning(true);
       lastSendRef.current = { text, mode: isBuild ? "build" : "chat" };
       cancelRef.current?.();
-      if (isBuild) {
-        // Optimistic user bubble (build's first user msg is persisted by
-        // the orchestrator; show it immediately for responsiveness).
-        setMessages((prev) => [
-          ...prev,
-          { id: `tmp-${Date.now()}`, kind: "user", text },
-        ]);
-        cancelRef.current = buildStream(projectId, text, streamCallbacks);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          { id: `tmp-${Date.now()}`, kind: "user", text },
-        ]);
-        cancelRef.current = chatStream(projectId, text, streamCallbacks);
-      }
+
+      // Optimistic user bubble (the orchestrator persists the first user
+      // message; show it immediately for responsiveness).
+      setMessages((prev) => [
+        ...prev,
+        { id: `tmp-${Date.now()}`, kind: "user", text },
+      ]);
       setAtBottom(true);
+
+      // Lazily create a conversation when starting a fresh (pending) chat.
+      let cid = conversationIdRef.current;
+      if (!cid) {
+        try {
+          const created = await builderApi.createConversation(projectId);
+          cid = created.id;
+          setConversation(cid);
+        } catch {
+          // Couldn't create — stream without an id; the backend attaches
+          // the rows to the default conversation.
+          cid = null;
+        }
+      }
+
+      cancelRef.current = isBuild
+        ? buildStream(projectId, text, streamCallbacks, cid ?? undefined)
+        : chatStream(projectId, text, streamCallbacks, cid ?? undefined);
+
+      // Refresh the list so the new/auto-titled conversation appears and
+      // re-sorts by activity (fire-and-forget).
+      void refreshConversations();
     },
-    [projectId, streamCallbacks],
+    [projectId, streamCallbacks, setConversation, refreshConversations],
   );
 
   /* ---- actions ---- */
@@ -317,10 +419,11 @@ export default function ProjectChat({
           setRunning(true);
           cancelRef.current?.();
           const mode = lastSendRef.current?.mode ?? "chat";
+          const cid = conversationIdRef.current ?? undefined;
           cancelRef.current =
             mode === "build"
-              ? buildStream(projectId, userMsg.text, streamCallbacks)
-              : chatStream(projectId, userMsg.text, streamCallbacks);
+              ? buildStream(projectId, userMsg.text, streamCallbacks, cid)
+              : chatStream(projectId, userMsg.text, streamCallbacks, cid);
           setAtBottom(true);
         });
         return kept;
@@ -343,20 +446,87 @@ export default function ProjectChat({
           lastSendRef.current = { text: nextText, mode: lastSendRef.current?.mode ?? "chat" };
           cancelRef.current?.();
           const mode = lastSendRef.current?.mode ?? "chat";
+          const cid = conversationIdRef.current ?? undefined;
           setMessages((cur) => [
             ...cur,
             { id: `tmp-${Date.now()}`, kind: "user", text: nextText },
           ]);
           cancelRef.current =
             mode === "build"
-              ? buildStream(projectId, nextText, streamCallbacks)
-              : chatStream(projectId, nextText, streamCallbacks);
+              ? buildStream(projectId, nextText, streamCallbacks, cid)
+              : chatStream(projectId, nextText, streamCallbacks, cid);
           setAtBottom(true);
         });
         return kept;
       });
     },
     [running, projectId, streamCallbacks],
+  );
+
+  /* ---- conversation actions ---- */
+
+  /** Switch to a conversation: stop any run, set active, load history. */
+  const handleSelectConversation = useCallback(
+    (id: string) => {
+      if (id === conversationIdRef.current) return;
+      cancelRef.current?.();
+      cancelRef.current = null;
+      setRunning(false);
+      setErrored(false);
+      setConversation(id);
+      void loadHistory(id);
+    },
+    [setConversation, loadHistory],
+  );
+
+  /** Start a fresh chat — empty thread, pending (null) conversation id.
+   *  The conversation is created lazily on the first send. */
+  const handleNewChat = useCallback(() => {
+    cancelRef.current?.();
+    cancelRef.current = null;
+    setRunning(false);
+    setErrored(false);
+    setMessages([]);
+    setConversationId(null);
+    conversationIdRef.current = null;
+  }, []);
+
+  const handleRenameConversation = useCallback(
+    (id: string, title: string) => {
+      // Optimistic — patch locally, then persist + refetch.
+      setConversations((prev) =>
+        prev.map((c) => (c.id === id ? { ...c, title } : c)),
+      );
+      void (async () => {
+        try {
+          await builderApi.renameConversation(projectId, id, title);
+        } finally {
+          void refreshConversations();
+        }
+      })();
+    },
+    [projectId, refreshConversations],
+  );
+
+  const handleDeleteConversation = useCallback(
+    (id: string) => {
+      const wasActive = id === conversationIdRef.current;
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      void (async () => {
+        try {
+          await builderApi.deleteConversation(projectId, id);
+        } catch {
+          /* ignore — refetch reconciles */
+        }
+        const list = await refreshConversations();
+        if (wasActive) {
+          const next = list[0]?.id ?? null;
+          setConversation(next);
+          await loadHistory(next ?? undefined);
+        }
+      })();
+    },
+    [projectId, refreshConversations, setConversation, loadHistory],
   );
 
   /* ---- derived: typing indicator agent ---- */
@@ -401,7 +571,42 @@ export default function ProjectChat({
   const isEmpty = messages.length === 0;
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
+      <HistoryPanel
+        open={historyOpen}
+        conversations={conversations}
+        activeId={conversationId}
+        onClose={() => setHistoryOpen(false)}
+        onSelect={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onRename={handleRenameConversation}
+        onDelete={handleDeleteConversation}
+      />
+
+      {/* top bar: ☰ history · current title · ＋ New chat */}
+      <div className="flex h-10 shrink-0 items-center gap-2 border-b border-border px-2.5">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen(true)}
+          aria-label="Conversation history"
+          title="Conversation history"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+        <span className="min-w-0 flex-1 truncate text-2xs font-medium text-ink-dim">
+          {activeTitle}
+        </span>
+        <button
+          type="button"
+          onClick={handleNewChat}
+          title="New chat"
+          className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg px-2 text-2xs font-medium text-ink-dim transition-colors hover:bg-surface-2 hover:text-ink"
+        >
+          <Plus className="h-3.5 w-3.5" /> New chat
+        </button>
+      </div>
+
       <FleetStrip messages={messages} running={running} />
 
       <div ref={threadRef} onScroll={onScroll} className="flex-1 overflow-y-auto">

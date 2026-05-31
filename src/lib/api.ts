@@ -2482,6 +2482,18 @@ export interface ApiDeployPlan {
   summary: string;
 }
 
+/** A chat conversation thread within a project. Each project has at
+ *  least a default "Main" conversation (the backend ensures one), plus
+ *  any the user starts via ＋ New chat. */
+export interface ApiConversation {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  lastPreview: string;
+}
+
 export type ApiProjectMessageRole = "user" | "agent" | "system" | "tool";
 export type ApiProjectMessageKind = "message" | "op_card" | "result" | "asset";
 
@@ -2585,10 +2597,45 @@ export const builderApi = {
     );
   },
 
-  /** Per-project chat history. */
-  getProjectChat: (projectId: string) =>
+  /** Per-project chat history. When `conversationId` is supplied the
+   *  history is scoped to that conversation; omitted, the backend serves
+   *  the project's default ("Main") conversation. */
+  getProjectChat: (projectId: string, conversationId?: string) =>
     request<{ messages: ApiProjectMessage[] }>(
-      `/projects/${encodeURIComponent(projectId)}/chat`,
+      `/projects/${encodeURIComponent(projectId)}/chat${
+        conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : ""
+      }`,
+    ),
+
+  /* ----- conversations (multi-thread chat history) ----- */
+
+  /** List a project's conversations (most-recently-active first). The
+   *  backend ensures a default conversation exists before responding. */
+  listConversations: (projectId: string) =>
+    request<{ conversations: ApiConversation[] }>(
+      `/projects/${encodeURIComponent(projectId)}/conversations`,
+    ),
+
+  /** Start a new conversation. Title defaults to "New chat" server-side
+   *  and is auto-filled from the first user message. */
+  createConversation: (projectId: string, title?: string) =>
+    request<ApiConversation>(
+      `/projects/${encodeURIComponent(projectId)}/conversations`,
+      { method: "POST", body: JSON.stringify(title ? { title } : {}) },
+    ),
+
+  /** Rename a conversation. */
+  renameConversation: (projectId: string, cid: string, title: string) =>
+    request<ApiConversation>(
+      `/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(cid)}`,
+      { method: "PATCH", body: JSON.stringify({ title }) },
+    ),
+
+  /** Delete a conversation (cascade-deletes its messages). */
+  deleteConversation: (projectId: string, cid: string) =>
+    request<void>(
+      `/projects/${encodeURIComponent(projectId)}/conversations/${encodeURIComponent(cid)}`,
+      { method: "DELETE" },
     ),
 
   /** Per-project asset catalogue (the AssetGallery panel reads this). */
@@ -2654,10 +2701,11 @@ export function buildStream(
   projectId: string,
   prompt: string,
   callbacks: ProjectStreamCallbacks = {},
+  conversationId?: string,
 ): () => void {
   return openProjectStream(
     `/projects/${encodeURIComponent(projectId)}/build`,
-    { prompt },
+    conversationId ? { prompt, conversationId } : { prompt },
     callbacks,
   );
 }
@@ -2667,10 +2715,11 @@ export function chatStream(
   projectId: string,
   message: string,
   callbacks: ProjectStreamCallbacks = {},
+  conversationId?: string,
 ): () => void {
   return openProjectStream(
     `/projects/${encodeURIComponent(projectId)}/chat`,
-    { message },
+    conversationId ? { message, conversationId } : { message },
     callbacks,
   );
 }

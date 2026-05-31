@@ -38,10 +38,10 @@ export interface ChatOp {
 }
 
 export type ChatMsg =
-  | { id: string; kind: "user"; text: string; files?: string[] }
-  | { id: string; kind: "agent"; text: string; agent?: string }
-  | { id: string; kind: "op"; op: ChatOp }
-  | { id: string; kind: "result"; name: string; url: string; stack: string };
+  | { id: string; kind: "user"; text: string; files?: string[]; createdAt?: string }
+  | { id: string; kind: "agent"; text: string; agent?: string; createdAt?: string }
+  | { id: string; kind: "op"; op: ChatOp; createdAt?: string }
+  | { id: string; kind: "result"; name: string; url: string; stack: string; createdAt?: string };
 
 /** Render an inline preview for an asset by mime type — SVG / PNG / JPG
  *  show as <img>; Lottie JSON shows as a code preview (rendering Lottie
@@ -98,13 +98,14 @@ export function projectMessagesToChat(rows: {
   kind: string;
   content: string;
   metadata?: Record<string, unknown> | null;
+  createdAt?: string;
 }[]): ChatMsg[] {
   const out: ChatMsg[] = [];
   const opIndex = new Map<string, number>();
 
   for (const m of rows) {
     if (m.role === "user" && m.kind === "message") {
-      out.push({ id: m.id, kind: "user", text: m.content });
+      out.push({ id: m.id, kind: "user", text: m.content, createdAt: m.createdAt });
       continue;
     }
     if (m.kind === "message" || m.kind === "result" || m.kind === "asset") {
@@ -116,6 +117,7 @@ export function projectMessagesToChat(rows: {
           name: String(meta.name ?? "project"),
           url: String(meta.url ?? ""),
           stack: String(meta.stack ?? ""),
+          createdAt: m.createdAt,
         });
         continue;
       }
@@ -125,6 +127,7 @@ export function projectMessagesToChat(rows: {
         out.push({
           id: m.id,
           kind: "op",
+          createdAt: m.createdAt,
           op: {
             key: opKey,
             title: m.content,
@@ -141,7 +144,7 @@ export function projectMessagesToChat(rows: {
         });
         continue;
       }
-      out.push({ id: m.id, kind: "agent", text: m.content, agent: m.agent });
+      out.push({ id: m.id, kind: "agent", text: m.content, agent: m.agent, createdAt: m.createdAt });
       continue;
     }
     if (m.kind === "op_card") {
@@ -156,10 +159,10 @@ export function projectMessagesToChat(rows: {
       };
       const existing = opIndex.get(opKey);
       if (existing !== undefined) {
-        out[existing] = { id: m.id, kind: "op", op: next };
+        out[existing] = { id: m.id, kind: "op", op: next, createdAt: m.createdAt };
       } else {
         opIndex.set(opKey, out.length);
-        out.push({ id: m.id, kind: "op", op: next });
+        out.push({ id: m.id, kind: "op", op: next, createdAt: m.createdAt });
       }
     }
   }
