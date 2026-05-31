@@ -40,7 +40,7 @@ import PreviewColumn from "./workspace/PreviewColumn";
 import { useNavDrawer } from "./ConsoleShell";
 
 const TREE_DEFAULT = 280, TREE_MIN = 200, TREE_MAX = 480, TREE_KEY = "cantila:workspace-tree-w";
-const PREVIEW_DEFAULT = 480, PREVIEW_MIN = 360, PREVIEW_MAX = 820, PREVIEW_KEY = "cantila:workspace-preview-w";
+const PREVIEW_DEFAULT = 760, PREVIEW_MIN = 360, PREVIEW_MAX = 1100, PREVIEW_KEY = "cantila:workspace-preview-w2";
 
 interface Props {
   handle: string;
