@@ -31,7 +31,7 @@ There's a [marketing overview](/mcp) for the why; this is the how.
 - **Account** — every project, every domain, full surface.
 - **Project** — locked to one project. Best for repo-scoped agents.
 
-Copy the key (`ct_live_...`) — Cantila hashes it on save, so it's only
+Copy the key (`ctk_live_...`) — Cantila hashes it on save, so it's only
 visible once.
 
 ## Add to Claude Code
@@ -42,6 +42,7 @@ In your repo, create `.mcp.json`:
 {
   "mcpServers": {
     "cantila": {
+      "type": "http",
       "url": "https://api.cantila.app/v1/mcp",
       "headers": {
         "Authorization": "Bearer ${CANTILA_API_KEY}"
@@ -54,7 +55,7 @@ In your repo, create `.mcp.json`:
 Set `CANTILA_API_KEY` in your shell:
 
 ```bash
-export CANTILA_API_KEY=ct_live_...
+export CANTILA_API_KEY=ctk_live_...
 ```
 
 Restart Claude Code. The Cantila tools appear in the tool list — try
@@ -72,7 +73,7 @@ docs). Add:
       "command": "npx",
       "args": ["-y", "@cantila/mcp"],
       "env": {
-        "CANTILA_API_KEY": "ct_live_..."
+        "CANTILA_API_KEY": "ctk_live_..."
       }
     }
   }
@@ -88,7 +89,7 @@ connector:
 
 ```text
 URL:    https://api.cantila.app/v1/mcp
-Auth:   Bearer ct_live_...
+Auth:   Bearer ctk_live_...
 ```
 
 No local proxy needed.
