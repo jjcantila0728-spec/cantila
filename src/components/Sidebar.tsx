@@ -33,8 +33,9 @@ import {
 } from "lucide-react";
 import { cx } from "./ui";
 import { ACCOUNT } from "@/lib/mock-data";
-import { api, type ApiAccount } from "@/lib/api";
+import { api, type ApiAccount, type ApiWhoami } from "@/lib/api";
 import { useActiveAccount } from "@/lib/branding-context";
+import { Avatar } from "./Avatar";
 
 /** Two-letter initials derived from an account name. Falls back to the
  *  first two chars of the handle if the name is single-word. */
@@ -156,6 +157,12 @@ export function SidebarContent({
   // mock constant when the proxy is unauthenticated or the control plane
   // is unreachable, so demo/offline mode still renders sensibly.
   const [liveAccount, setLiveAccount] = useState<ApiAccount | null>(null);
+  // The signed-in user behind the chip — carries the avatar captured from
+  // their social login (Google `picture` / GitHub `avatar_url`) so the chip
+  // shows their face, not just account initials. Session callers only.
+  const [liveUser, setLiveUser] = useState<
+    NonNullable<Extract<ApiWhoami, { authenticated: true }>["user"]> | null
+  >(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -164,6 +171,7 @@ export function SidebarContent({
         const me = await api.whoami();
         if (cancelled) return;
         if (me.authenticated && me.account) setLiveAccount(me.account);
+        if (me.authenticated && me.user) setLiveUser(me.user);
       } catch {
         /* swallow — fall through to ACCOUNT mock */
       }
@@ -343,9 +351,19 @@ export function SidebarContent({
               collapsed ? "justify-center p-1" : "min-w-0 flex-1 gap-2.5 px-2 py-2",
             )}
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
-              {chipInitials}
-            </span>
+            {liveUser?.avatarUrl ? (
+              <span className="flex h-9 w-9 shrink-0 overflow-hidden rounded-lg">
+                <Avatar
+                  url={liveUser.avatarUrl}
+                  name={liveUser.name || liveUser.email}
+                  size={36}
+                />
+              </span>
+            ) : (
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-ember to-ember-dim font-mono text-xs font-bold text-[#1a0e08]">
+                {chipInitials}
+              </span>
+            )}
             {!collapsed && (
               <span className="min-w-0 leading-tight">
                 <span className="block truncate text-sm font-medium text-ink">
