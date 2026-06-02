@@ -10,6 +10,7 @@ import {
   CONTROL_PLANE_URL,
   SESSION_COOKIE,
   consumeOauthState,
+  oauthBaseUrl,
   safeFrom,
   sessionCookieOptions,
 } from "@/lib/auth";
@@ -21,7 +22,11 @@ export async function GET(
   const url = new URL(req.url);
   const code = url.searchParams.get("code") ?? undefined;
   const state = url.searchParams.get("state") ?? undefined;
-  const origin = url.origin;
+  // Use the public origin, NOT `url.origin`: behind the reverse proxy
+  // `req.url` is the internal upstream (`http://localhost:3000`), so any
+  // redirect built from it would bounce the browser to localhost after a
+  // successful sign-in. Mirrors the origin the redirect_uri was built from.
+  const origin = oauthBaseUrl();
 
   const fail = (msg: string) =>
     NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(msg)}`);
