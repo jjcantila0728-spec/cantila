@@ -107,8 +107,11 @@ export async function establishSession(
 export const OAUTH_STATE_COOKIE = "cantila_oauth_state";
 
 /** The public origin the OAuth callback is registered under. Mirrors the
- *  apex host the middleware serves the auth pages on. */
-function oauthBaseUrl(): string {
+ *  apex host the middleware serves the auth pages on. Exported so the
+ *  callback route bounces the browser to the public host after a
+ *  successful sign-in — `req.url` reflects the internal upstream origin
+ *  (`http://localhost:3000`) behind the reverse proxy. */
+export function oauthBaseUrl(): string {
   return (
     process.env.CANTILA_PUBLIC_ORIGIN ??
     (process.env.NODE_ENV === "production"
