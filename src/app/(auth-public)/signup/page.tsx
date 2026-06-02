@@ -44,13 +44,12 @@ async function signUp(formData: FormData) {
   redirect(safeFrom(from));
 }
 
-async function startOauth(formData: FormData) {
+async function startOauth(provider: string, formData: FormData) {
   "use server";
   // OAuth "continue with" registers-or-signs-in through the same redirect
   // flow /login uses — the control plane find-or-creates the user from the
   // verified provider email, so signup and login share one start.
   const from = formData.get("from") as string | null;
-  const provider = String(formData.get("provider") ?? "");
   if (provider !== "google" && provider !== "github") {
     redirect(`/signup?error=${encodeURIComponent("unknown provider")}`);
   }
