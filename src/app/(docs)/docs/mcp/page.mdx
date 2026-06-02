@@ -95,26 +95,40 @@ No local proxy needed.
 
 ## The tool list
 
-| Tool                   | What it does                                                  |
-| ---------------------- | ------------------------------------------------------------- |
-| `cantila_deploy`       | Ship a project (files or repo); return a live URL.            |
-| `cantila_create_project` | Create a project — auto-wired services land on first deploy. |
-| `cantila_list_projects` | List projects and their status.                              |
-| `cantila_get_logs`     | Fetch build and runtime logs.                                 |
-| `cantila_set_env`      | Set or update environment variables.                          |
-| `cantila_provision_db` | Create a managed DB and wire it.                              |
-| `cantila_add_domain`   | Attach a domain and issue SSL.                                |
-| `cantila_scale`        | Resize or scale a deployment.                                 |
-| `cantila_status`       | Report health, services, domains, deploys.                    |
-| `cantila_connect_git`  | Connect a repo for push-to-deploy.                            |
-| `cantila_rollback`     | Roll back to a previous deployment.                           |
-| `cantila_agents_status`| Read what the brain has decided, what's queued for review.    |
+All 28 tools the server exposes, listed inline — no separate reference to
+chase. Tools marked **†** call an LLM (your configured ops model); every
+other tool is deterministic and costs nothing in model tokens.
 
-Plus backup tools — `cantila_create_backup`, `cantila_list_backups`,
-`cantila_restore_backup` — automation tools — `cantila_create_automation`,
-`cantila_list_automations`, `cantila_save_workflow`, `cantila_run_workflow`
-— and connection tools — `cantila_list_connections`,
-`cantila_create_connection`. The full list is in the API reference.
+| Tool                      | What it does                                                       |
+| ------------------------- | ------------------------------------------------------------------ |
+| `cantila_deploy`          | Ship a project (files or repo); returns a live URL.                |
+| `cantila_create_project`  | Create a project — auto-wired services land on first deploy.       |
+| `cantila_push_files`      | Push files (path + contents) into a project's repo.                |
+| `cantila_list_projects`   | List projects and their status.                                    |
+| `cantila_status`          | Report a project's health, services, domains, and recent deploys.  |
+| `cantila_get_logs`        | Fetch build and runtime logs.                                      |
+| `cantila_set_env`         | Set or update an environment variable.                             |
+| `cantila_provision_db`    | Create a managed database (default Postgres) and wire it in.       |
+| `cantila_add_domain`      | Attach a domain and issue SSL.                                     |
+| `cantila_connect_git`     | Connect a repo for push-to-deploy.                                 |
+| `cantila_scale`           | Resize vCPU/memory/disk or set auto-scaling bounds.                |
+| `cantila_list_instances`  | List a project's running instances.                                |
+| `cantila_deploy_preview`  | Spin up a preview (ephemeral) deployment.                          |
+| `cantila_list_previews`   | List active preview deployments.                                   |
+| `cantila_destroy_preview` | Tear down a preview deployment.                                    |
+| `cantila_rollback`        | Roll back to a previous deployment.                                |
+| `cantila_create_backup`   | Take a point-in-time backup.                                       |
+| `cantila_list_backups`    | List a project's backups, newest first.                            |
+| `cantila_restore_backup`  | Restore a project from a backup.                                   |
+| `cantila_delete_database` | Delete a project's managed database.                               |
+| `cantila_delete_project`  | Permanently delete a project.                                      |
+| `cantila_agents_status`   | Read what the brain decided and what's queued for review.          |
+| `cantila_troubleshoot` †  | Diagnose a failed or unhealthy deployment.                         |
+| `cantila_optimise_cost` † | Recommend cost optimisations for an account.                       |
+| `cantila_create_automation` | Spin up an automation project (e.g. n8n).                        |
+| `cantila_list_automations` | List automations for an account.                                  |
+| `cantila_list_connections` | List an account's stored provider connections.                    |
+| `cantila_create_connection` | Connect a provider (openai, stripe, sendgrid, …).               |
 
 ## What one ask looks like
 

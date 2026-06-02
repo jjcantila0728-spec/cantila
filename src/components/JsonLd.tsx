@@ -20,7 +20,11 @@ export default function JsonLd({ payload }: JsonLdProps) {
         <script
           key={i}
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(p) }}
+          dangerouslySetInnerHTML={{
+            // Escape `<` so a payload value containing `</script>` cannot
+            // break out of the JSON-LD <script> tag.
+            __html: JSON.stringify(p).replace(/</g, "\\u003c"),
+          }}
         />
       ))}
     </>

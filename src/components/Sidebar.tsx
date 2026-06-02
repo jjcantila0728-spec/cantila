@@ -49,6 +49,27 @@ function initialsFor(name: string, handle: string): string {
   return handle.slice(0, 2).toUpperCase();
 }
 
+/** Validate a tenant-supplied logo URL. Only https: absolute URLs and
+ *  same-origin/relative paths are allowed; anything else (javascript:,
+ *  data:, http:, protocol-relative) is rejected so it falls back to the
+ *  default brand mark. */
+function safeLogoUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+  // Relative / same-origin path (but not protocol-relative "//host").
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
+  try {
+    const parsed = new URL(
+      trimmed,
+      typeof window !== "undefined" ? window.location.origin : "https://cantila.app",
+    );
+    return parsed.protocol === "https:" ? trimmed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 type NavItem = { href: string; label: string; icon: typeof Boxes };
 
 export const NAV: { heading: string; items: NavItem[] }[] = [
@@ -165,7 +186,10 @@ export function SidebarContent({
     ACCOUNT.org;
   const effectiveHandle = branded?.handle ?? liveAccount?.handle ?? ACCOUNT.handle;
   const effectivePlan = branded?.plan ?? liveAccount?.plan ?? ACCOUNT.plan;
-  const effectiveLogoUrl = branded?.brandLogoUrl;
+  // White-label logo comes from tenant input, so only allow https: URLs
+  // or same-origin/relative paths; anything else (javascript:, data:, http:)
+  // falls back to the default brand mark.
+  const effectiveLogoUrl = safeLogoUrl(branded?.brandLogoUrl);
   const chipName = effectiveName;
   const chipHandle = effectiveHandle;
   const chipPlan = effectivePlan;

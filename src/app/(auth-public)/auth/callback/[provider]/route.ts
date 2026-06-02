@@ -42,6 +42,9 @@ export async function GET(
         provider: params.provider,
         code,
         codeVerifier: stored.codeVerifier,
+        // Forward state so the control plane binds the callback to its
+        // server-side login flight (single-use, server-held PKCE verifier).
+        state,
       }),
       cache: "no-store",
     });
