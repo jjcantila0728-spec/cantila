@@ -47,10 +47,9 @@ async function signInWithPassword(formData: FormData) {
   redirect(safeFrom(from));
 }
 
-async function startOauth(formData: FormData) {
+async function startOauth(provider: string, formData: FormData) {
   "use server";
   const from = formData.get("from") as string | null;
-  const provider = String(formData.get("provider") ?? "");
   if (provider !== "google" && provider !== "github") {
     redirect(`/login?error=${encodeURIComponent("unknown provider")}`);
   }

@@ -31,21 +31,25 @@ const BTN =
  * Google + GitHub sign-in buttons.
  *
  * Rendered inside the page's auth <form>, so they inherit the hidden
- * `from` field. Each submits via `formAction` to the passed server
- * action and tags the request with a `provider` value through the
- * submitter button's name/value pair. `formNoValidate` is required:
- * without it, submitting the shared password form runs HTML5 constraint
- * validation on the `required` email/password inputs first, so the
- * browser blocks the OAuth submit with "email is required" before the
- * server action ever runs (SSO needs neither field). Only providers the
- * control plane reports are rendered; an empty list (control plane
- * unreachable) shows both so the dev/stub flow still round-trips.
+ * `from` field. The provider is passed to the server action as a *bound
+ * argument* (`action.bind(null, "google")`), NOT through the submitter
+ * button's name/value pair: React server actions serialize the form's
+ * fields into FormData but drop the submitter's name/value, so a button
+ * `name="provider"` never reaches the action — that's why every SSO
+ * click previously failed with "unknown provider". `formNoValidate` is
+ * required: without it, submitting the shared password form runs HTML5
+ * constraint validation on the `required` email/password inputs first,
+ * so the browser blocks the OAuth submit with "email is required"
+ * before the server action ever runs (SSO needs neither field). Only
+ * providers the control plane reports are rendered; an empty list
+ * (control plane unreachable) shows both so the dev/stub flow still
+ * round-trips.
  */
 export default function OAuthButtons({
   action,
   providers,
 }: {
-  action: (formData: FormData) => void;
+  action: (provider: string, formData: FormData) => void;
   providers: Array<{ id: string; label: string; live: boolean }>;
 }) {
   const ids = new Set(providers.map((p) => p.id));
@@ -55,10 +59,8 @@ export default function OAuthButtons({
       {show("google") && (
         <button
           type="submit"
-          formAction={action}
+          formAction={action.bind(null, "google")}
           formNoValidate
-          name="provider"
-          value="google"
           className={BTN}
         >
           <GoogleIcon className="h-4 w-4" />
@@ -68,10 +70,8 @@ export default function OAuthButtons({
       {show("github") && (
         <button
           type="submit"
-          formAction={action}
+          formAction={action.bind(null, "github")}
           formNoValidate
-          name="provider"
-          value="github"
           className={BTN}
         >
           <Github className="h-4 w-4" />
