@@ -66,6 +66,19 @@ async function forward(req: NextRequest, segments: string[]) {
     const upstreamCt = res.headers.get("content-type") ?? "";
     if (upstreamCt) responseHeaders.set("content-type", upstreamCt);
 
+    // Forward redirects: with `redirect: "manual"` a 3xx is surfaced as-is,
+    // so the Location header must be passed through or the client follows
+    // nothing. Also forward any Set-Cookie(s) the control plane issues
+    // (e.g. session refresh) — use getSetCookie() to preserve multiples.
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      if (location) responseHeaders.set("location", location);
+    }
+    const setCookies = res.headers.getSetCookie?.() ?? [];
+    for (const cookie of setCookies) {
+      responseHeaders.append("set-cookie", cookie);
+    }
+
     // For SSE (text/event-stream) we MUST keep the body as a stream so each
     // frame reaches the client as soon as the upstream writes it. Buffering
     // (arrayBuffer) would delay every step until the deploy completes.

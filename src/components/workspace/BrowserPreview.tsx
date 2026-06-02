@@ -240,6 +240,7 @@ export default function BrowserPreview({
             key={`${active.id}:${active.nonce}`}
             src={active.url}
             title="Live preview"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
             className="h-full w-full border-0 bg-white"
           />
         ) : (
@@ -249,6 +250,7 @@ export default function BrowserPreview({
                 key={`${active.id}:${active.nonce}`}
                 src={active.url}
                 title="Live preview (mobile)"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 className="h-full w-full border-0 bg-white"
               />
             </div>
