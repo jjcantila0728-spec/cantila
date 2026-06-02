@@ -200,7 +200,14 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
               <h2 className="font-display text-lg font-semibold text-ink">Project settings</h2>
               <button onClick={() => setShowSettings(false)} className="text-ink-dim hover:text-ink">✕</button>
             </div>
-            <ProjectSettingsPanel detail={detail} onRefresh={() => load({ silent: true })} />
+            <ProjectSettingsPanel
+              detail={detail}
+              onRefresh={() => load({ silent: true })}
+              onSlugChanged={(newSlug) => {
+                setShowSettings(false);
+                router.push(`/@${handle}/${encodeURIComponent(newSlug)}`);
+              }}
+            />
           </div>
         </div>
       )}

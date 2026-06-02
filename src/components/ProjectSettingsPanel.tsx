@@ -1,9 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { Save } from "lucide-react";
+import { Save, Globe } from "lucide-react";
 import { api, type ApiProjectDetail } from "../lib/api";
 import { cx } from "./ui";
+import { inputClass } from "./Modal";
+
+/** Mirror of the server-side slugify so the preview matches what the
+ *  backend will actually store. Keep in sync with control-plane slugify. */
+function slugify(raw: string): string {
+  return (
+    raw
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40)
+  );
+}
 
 const VCPU = [1, 2, 4, 8];
 const MEM_GB = [1, 2, 4, 8, 16];
@@ -12,9 +25,13 @@ const DISK_GB = [10, 20, 50];
 export default function ProjectSettingsPanel({
   detail,
   onRefresh,
+  onSlugChanged,
 }: {
   detail: ApiProjectDetail;
   onRefresh: () => Promise<void>;
+  /** Called after the subdomain changes — lets the host navigate to the
+   *  new canonical URL, since `/@handle/<slug>` resolves by slug. */
+  onSlugChanged?: (newSlug: string) => void;
 }) {
   const { project } = detail;
   const [vcpu, setVcpu] = useState(project.vcpu);
@@ -53,7 +70,10 @@ export default function ProjectSettingsPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <Subdomain project={project} onSlugChanged={onSlugChanged} />
+
+      <div className="space-y-4 border-t border-border-soft pt-5">
       <h3 className="font-display text-sm font-semibold text-ink">Compute</h3>
 
       <Choice label="vCPU" unit="cores" options={VCPU} value={vcpu} onChange={setVcpu} />
@@ -95,6 +115,90 @@ export default function ProjectSettingsPanel({
       >
         <Save className="h-4 w-4" strokeWidth={2.2} />
         {saving ? "Saving…" : "Save changes"}
+      </button>
+      </div>
+    </div>
+  );
+}
+
+function Subdomain({
+  project,
+  onSlugChanged,
+}: {
+  project: ApiProjectDetail["project"];
+  onSlugChanged?: (newSlug: string) => void;
+}) {
+  const [value, setValue] = useState(project.slug);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const next = slugify(value);
+  const dirty = next.length > 0 && next !== project.slug;
+
+  async function save() {
+    if (!dirty || saving) return;
+    if (
+      !window.confirm(
+        `Change this project's subdomain to ${next}.cantila.app?\n\n` +
+          `The current URL (${project.slug}.cantila.app) will stop working, ` +
+          `and the new URL goes live on the next deploy.`,
+      )
+    )
+      return;
+    setSaving(true);
+    setErr(null);
+    try {
+      const updated = await api.renameSlug(project.id, next);
+      // `/@handle/<slug>` resolves by slug, so the host re-navigates to the
+      // new canonical URL (the server may have normalised the value).
+      onSlugChanged?.(updated.slug);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "could not change subdomain");
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <h3 className="flex items-center gap-1.5 font-display text-sm font-semibold text-ink">
+        <Globe className="h-4 w-4 text-ink-dim" strokeWidth={2.2} />
+        Subdomain
+      </h3>
+      <p className="text-2xs text-ink-faint">
+        Your project&rsquo;s free <span className="font-mono">cantila.app</span>{" "}
+        address. The new URL goes live on the next deploy.
+      </p>
+
+      <div className="flex items-stretch gap-0">
+        <input
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void save();
+          }}
+          spellCheck={false}
+          className={cx(inputClass, "rounded-r-none font-mono")}
+        />
+        <span className="inline-flex items-center rounded-r-lg border border-l-0 border-border bg-surface-2 px-3 font-mono text-2xs text-ink-faint">
+          .cantila.app
+        </span>
+      </div>
+
+      {dirty && (
+        <div className="text-2xs text-ink-faint">
+          New URL:{" "}
+          <span className="font-mono text-ink">{next}.cantila.app</span>
+        </div>
+      )}
+      {err && <div className="text-2xs text-down">{err}</div>}
+
+      <button
+        onClick={save}
+        disabled={!dirty || saving}
+        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-semibold text-[#1a0e08] hover:bg-ember-bright disabled:cursor-default disabled:opacity-60"
+      >
+        <Save className="h-4 w-4" strokeWidth={2.2} />
+        {saving ? "Changing…" : "Change subdomain"}
       </button>
     </div>
   );
