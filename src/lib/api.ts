@@ -300,6 +300,15 @@ export const api = {
       body: JSON.stringify(input),
     }),
 
+  // Change the project's subdomain. The live URL switches on the next
+  // deploy — the server normalises (slugifies) the value and enforces
+  // global uniqueness.
+  renameSlug: (projectId: string, slug: string) =>
+    request<ApiProject>(`/projects/${encodeURIComponent(projectId)}/slug`, {
+      method: "POST",
+      body: JSON.stringify({ slug }),
+    }),
+
   listInstances: (projectId: string) =>
     request<{ instances: ApiInstance[] }>(
       `/projects/${encodeURIComponent(projectId)}/instances`,
