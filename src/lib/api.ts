@@ -1333,6 +1333,45 @@ export const api = {
       `/connections/oauth/start?${q.toString()}`,
     );
   },
+
+  /* ----- super-user back-office (super-user management, slice 1) ----- */
+
+  adminListAccounts: (filter: { q?: string; plan?: string; billingStatus?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (filter.q) p.set("q", filter.q);
+    if (filter.plan) p.set("plan", filter.plan);
+    if (filter.billingStatus) p.set("billingStatus", filter.billingStatus);
+    const qs = p.toString();
+    return request<{ accounts: ApiAdminAccount[] }>(`/admin/accounts${qs ? `?${qs}` : ""}`);
+  },
+
+  adminGetAccount: (id: string) =>
+    request<{
+      account: ApiAccount;
+      projects: ApiProject[];
+      members: { id: string; userId: string; accountId: string; role: ApiMemberRole; createdAt: string }[];
+    }>(`/admin/accounts/${encodeURIComponent(id)}`),
+
+  adminListUsers: (q?: string) =>
+    request<{ users: ApiAdminUser[] }>(`/admin/users${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+
+  adminListProjects: (filter: { accountId?: string; status?: string } = {}) => {
+    const p = new URLSearchParams();
+    if (filter.accountId) p.set("accountId", filter.accountId);
+    if (filter.status) p.set("status", filter.status);
+    const qs = p.toString();
+    return request<{ projects: ApiProject[] }>(`/admin/projects${qs ? `?${qs}` : ""}`);
+  },
+
+  adminListAudit: (filter: { actorUserId?: string; action?: string; targetType?: string; limit?: number } = {}) => {
+    const p = new URLSearchParams();
+    if (filter.actorUserId) p.set("actorUserId", filter.actorUserId);
+    if (filter.action) p.set("action", filter.action);
+    if (filter.targetType) p.set("targetType", filter.targetType);
+    if (filter.limit) p.set("limit", String(filter.limit));
+    const qs = p.toString();
+    return request<{ events: ApiAuditEvent[] }>(`/admin/audit${qs ? `?${qs}` : ""}`);
+  },
 };
 
 /* ---------- Cantila Automations + Connections — wire shapes ---------- */
@@ -2121,8 +2160,47 @@ export type ApiWhoami =
         emailVerifiedAt: string | null;
         /** Profile image (Google/GitHub OAuth or uploaded), or null. */
         avatarUrl?: string | null;
+        /** Platform super-user role (super-user management, slice 1).
+         *  Null/undefined for ordinary tenant users. */
+        platformRole?: "superadmin" | "support" | null;
       } | null;
     };
+
+/* ----- super-user back-office (super-user management, slice 1) ----- */
+
+export interface ApiAdminAccount {
+  id: string;
+  name: string;
+  handle: string;
+  plan: string;
+  billingStatus?: string;
+  projectCount: number;
+  memberCount: number;
+  createdAt: string;
+}
+
+export interface ApiAdminUser {
+  id: string;
+  email: string;
+  name: string;
+  platformRole?: "superadmin" | "support" | null;
+  accountId?: string;
+  emailVerifiedAt?: string;
+  createdAt: string;
+}
+
+export interface ApiAuditEvent {
+  id: string;
+  actorUserId: string;
+  actorEmail: string;
+  action: string;
+  targetType: string;
+  targetId?: string;
+  accountId?: string;
+  metadata: Record<string, unknown>;
+  ip?: string;
+  createdAt: string;
+}
 
 export type ApiAgentName =
   | "uptime"
