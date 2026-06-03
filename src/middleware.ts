@@ -53,6 +53,11 @@ const CONSOLE_ONLY_PREFIXES = [
   "/a2p",
   "/automations",
   "/connections",
+  // OAuth consent (MCP connector) — canonical on the dashboard host so the
+  // session cookie and the control-plane proxy are in reach. The page is
+  // public to the gate (below) and runs its own sign-in round trip, which
+  // preserves the full authorization query that gate() would otherwise drop.
+  "/oauth",
 ];
 
 /** Paths that only make sense on the public host. Bounced from
@@ -91,6 +96,11 @@ const PUBLIC_AUTH_EXACT = new Set([
   "/logout",
   "/status",
   "/",
+  // OAuth consent reaches the gate already on the console host (it's a
+  // CONSOLE_ONLY path). Mark it public so gate() doesn't bounce to /login
+  // and drop the authorization query — the page does its own session check
+  // and rebuilds the full ?from= round trip itself.
+  "/oauth/consent",
 ]);
 const PUBLIC_AUTH_PREFIXES = [
   "/invite/",
