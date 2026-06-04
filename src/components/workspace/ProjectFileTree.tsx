@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, ChevronDown, File as FileIcon, Loader2, FolderClosed, Download } from "lucide-react";
-import { strToU8, zipSync } from "fflate";
 import { builderApi, type ApiFileNode, ApiError } from "../../lib/api";
 import { cx } from "../ui";
 
@@ -34,33 +33,6 @@ function buildTree(flat: ApiFileNode[]): TreeNode[] {
     if (node.type === "tree") dirs.set(node.path, tn);
   }
   return root.children;
-}
-
-/** Fetch up to `limit` files at a time so a big repo doesn't open hundreds
- *  of requests at once. Returns a path→bytes map for fflate. */
-async function fetchBlobs(
-  projectId: string,
-  blobs: string[],
-  onProgress: (done: number) => void,
-): Promise<Record<string, Uint8Array>> {
-  const out: Record<string, Uint8Array> = {};
-  let done = 0;
-  const limit = 8;
-  let cursor = 0;
-  async function worker() {
-    while (cursor < blobs.length) {
-      const path = blobs[cursor++];
-      try {
-        const c = await builderApi.getProjectFileContent(projectId, path);
-        out[path] = strToU8(c.content);
-      } catch {
-        /* skip unreadable/binary files rather than failing the whole archive */
-      }
-      onProgress(++done);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, blobs.length) }, worker));
-  return out;
 }
 
 export default function ProjectFileTree({
@@ -98,22 +70,30 @@ export default function ProjectFileTree({
   const tree = useMemo(() => (flat ? buildTree(flat) : []), [flat]);
 
   const downloadZip = useCallback(async () => {
-    if (!flat || zipping) return;
-    const blobs = flat.filter((n) => n.type === "blob").map((n) => n.path);
-    if (blobs.length === 0) {
-      setZipMsg("No files to download");
-      return;
-    }
+    if (zipping) return;
     setZipping(true);
-    setZipMsg(`Packing 0/${blobs.length}…`);
+    setZipMsg("Preparing archive…");
     try {
-      const files = await fetchBlobs(projectId, blobs, (done) =>
-        setZipMsg(`Packing ${done}/${blobs.length}…`),
-      );
-      const zipped = zipSync(files, { level: 6 });
+      // The control plane streams a real, binary-faithful .zip from the git
+      // provider (GitHub zipball / Gitea archive). The session cookie auths
+      // through the same-origin proxy, so a credentialed fetch is enough.
+      const res = await fetch(builderApi.projectArchiveHref(projectId), {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!res.ok) {
+        let msg = `Download failed (${res.status})`;
+        try {
+          const j = (await res.json()) as { error?: string };
+          if (j?.error === "no-repo") msg = "No repo connected yet";
+          else if (j?.error) msg = j.error;
+        } catch {
+          /* non-JSON body */
+        }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
       const safeName = (projectName || "project").replace(/[^a-z0-9._-]+/gi, "-");
-      // copy into a fresh ArrayBuffer-backed view so Blob is happy across TS lib targets
-      const blob = new Blob([zipped.slice()], { type: "application/zip" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -124,11 +104,11 @@ export default function ProjectFileTree({
       URL.revokeObjectURL(url);
       setZipMsg(null);
     } catch (e) {
-      setZipMsg(e instanceof Error ? `Download failed: ${e.message}` : "Download failed");
+      setZipMsg(e instanceof Error ? e.message : "Download failed");
     } finally {
       setZipping(false);
     }
-  }, [flat, zipping, projectId, projectName]);
+  }, [zipping, projectId, projectName]);
 
   if (flat === null) {
     return (

@@ -244,15 +244,42 @@ export default function BrowserPreview({
             className="h-full w-full border-0 bg-white"
           />
         ) : (
-          <div className="flex h-full items-start justify-center p-4">
-            <div className="h-[680px] w-[360px] overflow-hidden rounded-[2rem] border-4 border-ink/40 bg-white shadow-lift">
-              <iframe
-                key={`${active.id}:${active.nonce}`}
-                src={active.url}
-                title="Live preview (mobile)"
-                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                className="h-full w-full border-0 bg-white"
-              />
+          <div className="flex h-full items-start justify-center p-6">
+            {/* iPhone 17 Pro — titanium frame, Dynamic Island, side
+                buttons (action + volume left, power + Camera Control
+                right). Screen is the device's true 402×874pt logical
+                viewport so responsive sites hit their mobile breakpoint. */}
+            <div className="relative shrink-0">
+              {/* left rail buttons */}
+              <div className="absolute -left-[2px] top-[118px] h-[34px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* action */}
+              <div className="absolute -left-[2px] top-[172px] h-[58px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* vol up */}
+              <div className="absolute -left-[2px] top-[242px] h-[58px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* vol down */}
+              {/* right rail buttons */}
+              <div className="absolute -right-[2px] top-[122px] h-[44px] w-[3px] rounded-r-md bg-gradient-to-l from-[#c9c9cf] to-[#6f6f76]" />{/* Camera Control */}
+              <div className="absolute -right-[2px] top-[206px] h-[92px] w-[3px] rounded-r-md bg-gradient-to-l from-[#8a8a90] to-[#55555b]" />{/* power */}
+
+              {/* titanium frame */}
+              <div className="rounded-[3.4rem] bg-[linear-gradient(135deg,#e2e2e7_0%,#9c9ca2_18%,#6c6c73_50%,#9c9ca2_82%,#e2e2e7_100%)] p-[3px] shadow-lift">
+                {/* black bezel */}
+                <div className="rounded-[3.2rem] bg-black p-[11px]">
+                  {/* screen — true logical viewport */}
+                  <div className="relative h-[874px] w-[402px] overflow-hidden rounded-[2.55rem] bg-white">
+                    <iframe
+                      key={`${active.id}:${active.nonce}`}
+                      src={active.url}
+                      title="Live preview (mobile)"
+                      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                      className="h-full w-full border-0 bg-white"
+                    />
+                    {/* Dynamic Island */}
+                    <div className="pointer-events-none absolute left-1/2 top-[11px] z-20 flex h-[31px] w-[120px] -translate-x-1/2 items-center justify-end gap-2.5 rounded-full bg-black pr-3.5">
+                      <span className="h-[10px] w-[10px] rounded-full bg-[#0a0a14] ring-1 ring-[#23232b]" />
+                    </div>
+                    {/* home indicator */}
+                    <div className="pointer-events-none absolute bottom-[9px] left-1/2 z-20 h-[5px] w-[138px] -translate-x-1/2 rounded-full bg-black/35" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

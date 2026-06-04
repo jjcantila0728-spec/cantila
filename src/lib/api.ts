@@ -2663,6 +2663,14 @@ export const builderApi = {
       `/projects/${encodeURIComponent(projectId)}/files${ref ? `?ref=${encodeURIComponent(ref)}` : ""}`,
     ),
 
+  /** Same-origin proxy URL for the whole-project .zip archive. Fetch it with
+   *  credentials (the session cookie authenticates via the proxy) and save the
+   *  resulting blob — it's a real, binary-faithful zip from the git provider. */
+  projectArchiveHref: (projectId: string, ref?: string) =>
+    `${API_BASE}/projects/${encodeURIComponent(projectId)}/files/archive${
+      ref ? `?ref=${encodeURIComponent(ref)}` : ""
+    }`,
+
   /** Get a single file's content from a project. */
   getProjectFileContent: (projectId: string, path: string, ref?: string) =>
     request<ApiFileContent>(
