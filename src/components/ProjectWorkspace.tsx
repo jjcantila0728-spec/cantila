@@ -62,6 +62,29 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
   const [previewW, setPreviewW] = useState(PREVIEW_DEFAULT);
   const [showSettings, setShowSettings] = useState(false);
 
+  /* Files opened from the tree become editor tabs in the preview column.
+   * `activeView` is either "preview" or one of the open file paths. */
+  const [openFiles, setOpenFiles] = useState<string[]>([]);
+  const [activeView, setActiveView] = useState<string>("preview");
+
+  const openFile = useCallback((path: string) => {
+    setOpenFiles((prev) => (prev.includes(path) ? prev : [...prev, path]));
+    setActiveView(path);
+  }, []);
+
+  const closeFile = useCallback((path: string) => {
+    setOpenFiles((prev) => {
+      const idx = prev.indexOf(path);
+      const next = prev.filter((p) => p !== path);
+      setActiveView((v) => {
+        if (v !== path) return v;
+        if (next.length === 0) return "preview";
+        return next[Math.min(idx, next.length - 1)];
+      });
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     try {
       const t = Number(window.localStorage.getItem(TREE_KEY));
@@ -166,30 +189,51 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
 
       {/* 4-column body (lg+) */}
       <div className="hidden min-h-0 flex-1 lg:flex">
-        <div className="min-h-0 shrink-0 overflow-hidden rounded-xl border border-border bg-surface" style={{ width: treeW }}>
-          <ProjectFileTree projectId={project.id} />
+        <div className="min-h-0 shrink-0 overflow-hidden rounded-none border border-border bg-surface" style={{ width: treeW }}>
+          <ProjectFileTree
+            projectId={project.id}
+            projectName={project.name}
+            selectedPath={activeView === "preview" ? null : activeView}
+            onOpenFile={openFile}
+          />
         </div>
         <Splitter side="left" width={treeW} min={TREE_MIN} max={TREE_MAX} defaultWidth={TREE_DEFAULT} onChange={setTreeW} />
 
-        <div className="flex min-h-0 flex-1 flex-col panel overflow-hidden p-0">
+        <div className="flex min-h-0 flex-1 flex-col panel rounded-none overflow-hidden p-0">
           <ProjectChat projectId={project.id} projectName={project.name}
                        initialBuildPrompt={initialBuildPrompt} onAssetCreated={onAssetCreated} />
         </div>
         <Splitter side="right" width={previewW} min={PREVIEW_MIN} max={PREVIEW_MAX} defaultWidth={PREVIEW_DEFAULT} onChange={setPreviewW} />
 
         <div className="min-h-0 shrink-0" style={{ width: previewW }}>
-          <PreviewColumn detail={detail} liveUrl={liveUrl} onRefresh={() => load({ silent: true })} />
+          <PreviewColumn
+            detail={detail}
+            liveUrl={liveUrl}
+            onRefresh={() => load({ silent: true })}
+            openFiles={openFiles}
+            activeView={activeView}
+            onSelectView={setActiveView}
+            onCloseFile={closeFile}
+          />
         </div>
       </div>
 
       {/* mobile fallback — chat over preview, no file-tree */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:hidden">
-        <div className="min-h-0 flex-1 panel overflow-hidden p-0">
+        <div className="min-h-0 flex-1 panel rounded-none overflow-hidden p-0">
           <ProjectChat projectId={project.id} projectName={project.name}
                        initialBuildPrompt={initialBuildPrompt} onAssetCreated={onAssetCreated} />
         </div>
         <div className="min-h-0 flex-1">
-          <PreviewColumn detail={detail} liveUrl={liveUrl} onRefresh={() => load({ silent: true })} />
+          <PreviewColumn
+            detail={detail}
+            liveUrl={liveUrl}
+            onRefresh={() => load({ silent: true })}
+            openFiles={openFiles}
+            activeView={activeView}
+            onSelectView={setActiveView}
+            onCloseFile={closeFile}
+          />
         </div>
       </div>
 

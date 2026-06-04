@@ -144,7 +144,7 @@ export default function BrowserPreview({
               onClick={() => setActiveId(t.id)}
               title={t.url}
               className={cx(
-                "flex h-7 min-w-0 max-w-[160px] shrink-0 items-center gap-1 rounded-t-lg border-b-2 px-2 text-2xs",
+                "flex h-7 min-w-0 max-w-[160px] shrink-0 items-center gap-1 rounded-none border-b-2 px-2 text-2xs",
                 t.id === active?.id
                   ? "border-ember bg-surface text-ink"
                   : "border-transparent text-ink-dim hover:bg-surface-2",
