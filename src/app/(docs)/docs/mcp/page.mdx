@@ -23,7 +23,38 @@ There's a [marketing overview](/mcp) for the why; this is the how.
   use either, both, or neither.
 </Note>
 
+## Quick install (one line)
+
+The fastest path — no API key, no config file. Run the installer and it
+registers the Cantila MCP server with the Claude Code CLI for you:
+
+```powershell
+# Windows (PowerShell)
+iwr -useb https://mcp.cantila.app/install.ps1 | iex
+```
+
+```bash
+# macOS / Linux
+curl -fsSL https://mcp.cantila.app/install.sh | sh
+```
+
+That's it. The script runs
+`claude mcp add --transport http cantila https://mcp.cantila.app/v1/mcp`.
+The first time Claude uses a Cantila tool, a browser sign-in opens
+(OAuth) and links the server to your account — so there's no key to copy
+or store.
+
+<Note>
+  The one-liner needs the [Claude Code CLI](https://claude.com/claude-code)
+  on your PATH; if it's missing the script tells you where to get it. For
+  CI, headless agents, or non-CLI hosts (Claude Desktop, Cowork), use the
+  API-key methods below instead.
+</Note>
+
 ## Mint an API key
+
+Prefer to wire it by hand, or running somewhere without a browser? Mint a
+key instead.
 
 [Console → Settings → API keys](https://console.cantila.app/settings) →
 **Create key**. Pick a scope:
