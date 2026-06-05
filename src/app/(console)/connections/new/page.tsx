@@ -25,6 +25,7 @@ const FALLBACK_PROVIDERS: ApiProviderDescriptor[] = [
     name: "OpenAI",
     blurb: "GPT-4, embeddings, image generation.",
     glyph: "AI",
+    iconUrl: "https://cdn.simpleicons.org/openai",
     authKinds: ["api_key"],
     apiKey: {
       fields: [
@@ -37,6 +38,7 @@ const FALLBACK_PROVIDERS: ApiProviderDescriptor[] = [
     name: "Anthropic",
     blurb: "Claude — sonnet, opus, haiku.",
     glyph: "Λ",
+    iconUrl: "https://cdn.simpleicons.org/anthropic",
     authKinds: ["api_key"],
     apiKey: {
       fields: [
@@ -54,6 +56,7 @@ const FALLBACK_PROVIDERS: ApiProviderDescriptor[] = [
     name: "Stripe",
     blurb: "Payments, subscriptions, billing.",
     glyph: "S",
+    iconUrl: "https://cdn.simpleicons.org/stripe",
     authKinds: ["api_key"],
     apiKey: {
       fields: [
@@ -63,6 +66,25 @@ const FALLBACK_PROVIDERS: ApiProviderDescriptor[] = [
           secret: true,
           hint: "`sk_live_…` or `sk_test_…`.",
         },
+      ],
+    },
+  },
+  {
+    id: "website",
+    name: "Website login",
+    blurb: "Connect any site with your username and password.",
+    glyph: "🌐",
+    authKinds: ["basic"],
+    apiKey: {
+      fields: [
+        {
+          key: "site_url",
+          label: "Site URL",
+          secret: false,
+          hint: "e.g. `https://app.example.com` — the site you sign in to.",
+        },
+        { key: "username", label: "Username or email", secret: false },
+        { key: "password", label: "Password", secret: true },
       ],
     },
   },
@@ -93,6 +115,47 @@ const FALLBACK_PROVIDERS: ApiProviderDescriptor[] = [
     },
   },
 ];
+
+/** Derive a site's official logo from a URL the user typed. Uses Google's
+ *  favicon service so any domain — not just catalogued providers — shows
+ *  its real mark. Returns null until there's a parseable host. */
+function faviconFor(rawUrl: string): string | null {
+  const v = rawUrl.trim();
+  if (!v) return null;
+  try {
+    const host = new URL(v.includes("://") ? v : `https://${v}`).hostname;
+    if (!host || !host.includes(".")) return null;
+    return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+  } catch {
+    return null;
+  }
+}
+
+/** A provider's brand mark: the official logo when we have one, falling
+ *  back to the text glyph if the image is missing or fails to load. */
+function ProviderLogo({
+  src,
+  glyph,
+  className,
+}: {
+  src?: string | null;
+  glyph: string;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  if (src && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className={cx("object-contain", className)}
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+  return <span className="font-display font-bold text-ember">{glyph}</span>;
+}
 
 export default function NewConnectionPage() {
   const router = useRouter();
@@ -204,8 +267,12 @@ export default function NewConnectionPage() {
               className="panel group flex flex-col items-start gap-3 p-5 text-left transition-all hover:-translate-y-0.5 hover:border-ember/40"
             >
               <div className="flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 font-display text-lg font-bold text-ember">
-                  {p.glyph}
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 text-lg">
+                  <ProviderLogo
+                    src={p.iconUrl}
+                    glyph={p.glyph}
+                    className="h-6 w-6"
+                  />
                 </span>
                 <div>
                   <div className="font-display text-base font-semibold text-ink">
@@ -241,11 +308,24 @@ export default function NewConnectionPage() {
         <ChevronLeft className="h-3.5 w-3.5" />
         back to providers
       </button>
-      <PageHeader
-        eyebrow="Add a connection"
-        title={`Connect ${chosen.name}`}
-        lead={chosen.blurb}
-      />
+      <div className="flex items-center gap-4">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 text-xl">
+          <ProviderLogo
+            src={
+              chosen.id === "website"
+                ? faviconFor(fields.site_url ?? "") ?? chosen.iconUrl
+                : chosen.iconUrl
+            }
+            glyph={chosen.glyph}
+            className="h-8 w-8"
+          />
+        </span>
+        <PageHeader
+          eyebrow="Add a connection"
+          title={`Connect ${chosen.name}`}
+          lead={chosen.blurb}
+        />
+      </div>
 
       {error && (
         <div className="panel flex items-center gap-2 border-down/30 bg-down/5 px-4 py-3 text-2xs font-medium text-down">
