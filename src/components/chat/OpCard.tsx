@@ -5,10 +5,11 @@
 
    Extracted from ProjectChatMessages and enhanced with a fleet
    agent badge, a status icon (spinner / done / failed), a
-   collapsible log, and the existing inline asset preview.
+   collapsible log with auto-scroll, an elapsed timer for
+   running ops, and the existing inline asset preview.
    ============================================================ */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Search,
   Cpu,
@@ -47,12 +48,42 @@ function pickIcon(op: ChatOp): typeof Search {
   return OP_ICON[op.key] ?? Cpu;
 }
 
+function useElapsed(running: boolean): string {
+  const [elapsed, setElapsed] = useState(0);
+  const startRef = useRef(Date.now());
+
+  useEffect(() => {
+    if (!running) return;
+    startRef.current = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - startRef.current) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  if (!running) return "";
+  const m = Math.floor(elapsed / 60);
+  const s = elapsed % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
 export function OpCard({ op }: { op: ChatOp }) {
   const [logOpen, setLogOpen] = useState(false);
+  const logEndRef = useRef<HTMLDivElement>(null);
   const Icon = pickIcon(op);
   const done = op.status === "done";
   const failed = op.status === "failed";
+  const running = op.status === "running";
   const hasLog = !!op.log && op.log.length > 0;
+  const elapsed = useElapsed(running);
+
+  // Auto-scroll the log to the bottom when new lines arrive.
+  useEffect(() => {
+    if (logOpen && logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [op.log?.length, logOpen]);
 
   return (
     <div className="ml-11 flex gap-3 rounded-xl border border-border bg-surface-2 px-3.5 py-3">
@@ -77,7 +108,14 @@ export function OpCard({ op }: { op: ChatOp }) {
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-ink">{op.title}</span>
-          {op.status === "running" && <Loader2 className="h-3 w-3 animate-spin text-ember" />}
+          {running && (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin text-ember" />
+              {elapsed && (
+                <span className="font-mono text-2xs text-ink-faint">{elapsed}</span>
+              )}
+            </>
+          )}
           {op.agent && <AgentChip agentKey={op.agent} />}
         </div>
         {op.detail && <p className="mt-0.5 font-mono text-2xs text-ink-dim">{op.detail}</p>}
@@ -95,12 +133,13 @@ export function OpCard({ op }: { op: ChatOp }) {
               {logOpen ? "Hide log" : `Show log (${op.log!.length})`}
             </button>
             {logOpen && (
-              <div className="mt-1.5 space-y-0.5 rounded-lg border border-border-soft bg-[#0a0b0d] px-3 py-2 font-mono text-2xs text-ink-faint">
+              <div className="mt-1.5 max-h-48 overflow-y-auto space-y-0.5 rounded-lg border border-border-soft bg-[#0a0b0d] px-3 py-2 font-mono text-2xs text-ink-faint">
                 {op.log!.map((l, i) => (
                   <div key={i} className="animate-fade-in">
                     {l}
                   </div>
                 ))}
+                <div ref={logEndRef} />
               </div>
             )}
           </>

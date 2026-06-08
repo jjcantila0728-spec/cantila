@@ -21,7 +21,7 @@
    ============================================================ */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, Loader2, RefreshCw, Menu, Plus } from "lucide-react";
+import { ArrowDown, RefreshCw, Menu, Plus } from "lucide-react";
 import {
   builderApi,
   buildStream,
@@ -55,6 +55,9 @@ interface ProjectChatProps {
   /** Notified when a new asset lands so the workspace can refresh its
    *  AssetGallery without re-fetching. */
   onAssetCreated?: (asset: ApiProjectAsset) => void;
+  /** Called when a deployment result arrives — lets the workspace
+   *  auto-refresh the browser preview. */
+  onDeployComplete?: () => void;
 }
 
 const SUGGESTIONS = [
@@ -69,6 +72,7 @@ export default function ProjectChat({
   projectName,
   initialBuildPrompt,
   onAssetCreated,
+  onDeployComplete,
 }: ProjectChatProps) {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [running, setRunning] = useState(false);
@@ -313,7 +317,10 @@ export default function ProjectChat({
         onAssetCreated?.(asset);
       },
       onMessage: appendPersisted,
-      onResult: ({ name, url, stack }) => appendResult(name, url, stack),
+      onResult: ({ name, url, stack }) => {
+        appendResult(name, url, stack);
+        onDeployComplete?.();
+      },
       onError: (msg) => {
         setErrored(true);
         appendAgent("orchestrator", `Stream error: ${msg}`);
@@ -636,9 +643,9 @@ export default function ProjectChat({
             {rendered}
 
             {running && (
-              <div className="flex items-center gap-2 pl-11 text-2xs text-ink-faint">
-                <Loader2 className="h-3 w-3 animate-spin text-ember" />
-                {typingAgent ? `${typingAgent} is working…` : "Cantila is working…"}
+              <div className="flex items-center gap-1.5 pl-11 text-2xs text-ink-faint">
+                <span className="animate-pulse font-mono text-ember" aria-hidden="true">▍</span>
+                <span>{typingAgent ? `${typingAgent} is working…` : "Cantila is working…"}</span>
               </div>
             )}
 

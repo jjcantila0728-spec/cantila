@@ -30,9 +30,13 @@ interface SlashCommand {
 
 const SLASH: SlashCommand[] = [
   { cmd: "/build", hint: "Scaffold or extend the project" },
-  { cmd: "/deploy", hint: "Ship the current build" },
+  { cmd: "/deploy", hint: "Ship the current build to production" },
+  { cmd: "/rollback", hint: "Roll back to a previous deployment" },
+  { cmd: "/scale", hint: "Scale the project's compute resources" },
   { cmd: "/env", hint: "Set or inspect environment variables" },
-  { cmd: "/domains", hint: "Attach or manage a domain" },
+  { cmd: "/domains", hint: "Attach or manage a custom domain" },
+  { cmd: "/logs", hint: "Stream recent deployment logs" },
+  { cmd: "/analyze", hint: "Analyze the project for issues or optimizations" },
 ];
 
 function loadMode(projectId: string): ChatMode {
@@ -189,6 +193,7 @@ export function ChatComposer({
           </div>
 
           <div className="flex items-end gap-2 rounded-xl border border-border bg-bg p-2 focus-within:border-ink-faint">
+            <div className="flex min-w-0 flex-1 flex-col">
             <textarea
               ref={taRef}
               value={input}
@@ -200,8 +205,15 @@ export function ChatComposer({
                   ? "Describe what to build — a landing page, a contact form…"
                   : "Tell the team what to do — generate a logo, add a domain, scale… (/ for commands)"
               }
-              className="max-h-52 flex-1 resize-none bg-transparent py-2 text-sm text-ink outline-none placeholder:text-ink-faint"
+              className="max-h-52 w-full resize-none bg-transparent py-2 text-sm text-ink outline-none placeholder:text-ink-faint"
             />
+            <div className="flex items-center gap-2 pb-1 pt-0.5 text-[0.6rem] text-ink-faint">
+              <span>↵ send</span>
+              <span>⇧↵ newline</span>
+              <span>/ commands</span>
+              <span className="ml-auto">? shortcuts</span>
+            </div>
+            </div>
             {running ? (
               <button
                 type="button"

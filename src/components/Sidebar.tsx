@@ -13,7 +13,6 @@ import {
   CreditCard,
   Wallet,
   Users,
-  Settings2,
   Rocket,
   ChevronRight,
   Mail,
@@ -114,7 +113,6 @@ export const NAV: { heading: string; items: NavItem[] }[] = [
       { href: "/billing", label: "Billing", icon: CreditCard },
       { href: "/team", label: "Team", icon: Users },
       { href: "/orgs", label: "Orgs", icon: Building2 },
-      { href: "/settings", label: "Settings", icon: Settings2 },
     ],
   },
 ];

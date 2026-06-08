@@ -32,6 +32,9 @@ export default function PreviewColumn({
   onCloseFile,
   opsTab,
   onCloseOps,
+  dirtyPaths = new Set(),
+  onDirtyChange,
+  deployCount,
 }: {
   detail: ApiProjectDetail;
   liveUrl: string | null;
@@ -42,6 +45,12 @@ export default function PreviewColumn({
   onCloseFile: (path: string) => void;
   opsTab: OpsTab | null;
   onCloseOps: () => void;
+  /** Paths of open files that have unsaved changes — shown as a dot on the tab. */
+  dirtyPaths?: Set<string>;
+  /** Called by the active CodeEditor when its dirty state changes. */
+  onDirtyChange?: (path: string, dirty: boolean) => void;
+  /** Increments when a deploy completes; forwarded to BrowserPreview. */
+  deployCount?: number;
 }) {
   const showPreview = activeView === PREVIEW;
 
@@ -76,6 +85,9 @@ export default function PreviewColumn({
           >
             <FileCode className="h-3.5 w-3.5 shrink-0" />
             <span className="truncate">{leaf(path)}</span>
+            {dirtyPaths.has(path) && (
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ember" title="unsaved changes" />
+            )}
             <span
               role="button"
               tabIndex={-1}
@@ -98,11 +110,11 @@ export default function PreviewColumn({
           toolbar tabs) overlays whichever surface is showing. */}
       <div className="relative min-h-0 flex-1">
         <div className={cx("absolute inset-0", showPreview ? "block" : "hidden")}>
-          <BrowserPreview baseUrl={liveUrl} projectId={detail.project.id} />
+          <BrowserPreview baseUrl={liveUrl} projectId={detail.project.id} deployCount={deployCount} />
         </div>
         {!showPreview && (
           <div className="absolute inset-0">
-            <CodeEditor key={activeView} projectId={detail.project.id} path={activeView} />
+            <CodeEditor key={activeView} projectId={detail.project.id} path={activeView} onDirtyChange={onDirtyChange} />
           </div>
         )}
         <OpsDrawer detail={detail} onRefresh={onRefresh} tab={opsTab} onClose={onCloseOps} />

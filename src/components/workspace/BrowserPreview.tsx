@@ -8,6 +8,7 @@ import {
   ExternalLink,
   Plus,
   X,
+  Loader2,
 } from "lucide-react";
 import { cx } from "../ui";
 
@@ -52,9 +53,11 @@ const PHONE_H = 904;
 export default function BrowserPreview({
   baseUrl,
   projectId,
+  deployCount,
 }: {
   baseUrl: string | null;
   projectId: string;
+  deployCount?: number;
 }) {
   const storageKey = `cantila:preview-tabs:${projectId}`;
   const counter = useRef(1);
@@ -63,6 +66,8 @@ export default function BrowserPreview({
   ]);
   const [activeId, setActiveId] = useState("t0");
   const [hydrated, setHydrated] = useState(false);
+  const [iframeReady, setIframeReady] = useState(false);
+  const prevDeployCount = useRef(deployCount ?? 0);
 
   // Restore the saved tab session after mount (avoids SSR hydration mismatch).
   useEffect(() => {
@@ -137,6 +142,22 @@ export default function BrowserPreview({
   const refresh = useCallback(() => {
     if (active) update(active.id, { nonce: active.nonce + 1 });
   }, [active, update]);
+
+  // Auto-reload the active tab when a new deploy lands.
+  useEffect(() => {
+    const prev = prevDeployCount.current;
+    prevDeployCount.current = deployCount ?? 0;
+    if ((deployCount ?? 0) > prev && active) {
+      update(active.id, { nonce: active.nonce + 1 });
+      setIframeReady(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deployCount]);
+
+  // Reset iframeReady when the active tab URL/nonce changes.
+  useEffect(() => {
+    setIframeReady(false);
+  }, [active?.id, active?.nonce]);
 
   // Scale the iPhone mock so the entire device is always visible, no matter
   // how tall/narrow the preview column is. Measures the available area and
@@ -261,23 +282,41 @@ export default function BrowserPreview({
             Not deployed yet — the live preview appears once a domain resolves.
           </div>
         ) : active.device === "web" ? (
-          <iframe
-            key={`${active.id}:${active.nonce}`}
-            src={active.url}
-            title="Live preview"
-            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            className="h-full w-full border-0 bg-white"
-          />
+          <div className="relative h-full w-full">
+            {!iframeReady && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-bg">
+                <Loader2 className="h-5 w-5 animate-spin text-ink-faint" />
+              </div>
+            )}
+            <iframe
+              key={`${active.id}:${active.nonce}`}
+              src={active.url}
+              title="Live preview"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              onLoad={() => setIframeReady(true)}
+              className="h-full w-full border-0 bg-white"
+            />
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center p-2">
             {/* iPhone 17 Pro — titanium frame, Dynamic Island, side
                 buttons (action + volume left, power + Camera Control
                 right). Screen is the device's true 402×874pt logical
                 viewport so responsive sites hit their mobile breakpoint.
-                Scaled to always fit the column (see `fit`). */}
+                Scaled to always fit the column (see `fit`).
+
+                Layout trick: CSS transform does NOT affect layout — the
+                element still reserves its unscaled dimensions in the flow,
+                causing scroll. We give the outer shell the *scaled* pixel
+                dimensions so the document flow never exceeds the container,
+                then scale the inner content from top-left to fill it. */}
             <div
-              className="relative shrink-0"
-              style={{ transform: `scale(${fit})`, transformOrigin: "center" }}
+              className="relative shrink-0 overflow-hidden"
+              style={{ width: PHONE_W * fit, height: PHONE_H * fit }}
+            >
+            <div
+              className="absolute top-0 left-0 origin-top-left"
+              style={{ transform: `scale(${fit})`, width: PHONE_W, height: PHONE_H }}
             >
               {/* left rail buttons */}
               <div className="absolute -left-[2px] top-[118px] h-[34px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* action */}
@@ -309,7 +348,8 @@ export default function BrowserPreview({
                   </div>
                 </div>
               </div>
-            </div>
+            </div>{/* end inner scale div */}
+            </div>{/* end outer clip div */}
           </div>
         )}
       </div>
