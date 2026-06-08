@@ -832,6 +832,14 @@ export const api = {
   clearAnthropicKey: () =>
     request<ApiAccount>(`/accounts/me/anthropic-key`, { method: "DELETE" }),
 
+  setClaudeSubscriptionToken: (token: string) =>
+    request<ApiAccount>(`/accounts/me/claude-subscription`, {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+  clearClaudeSubscriptionToken: () =>
+    request<ApiAccount>(`/accounts/me/claude-subscription`, { method: "DELETE" }),
+
   agentsStatus: (fresh = false) =>
     request<ApiAgentsSnapshot>(
       `/agents/status${fresh ? "?fresh=1" : ""}`,
@@ -1847,6 +1855,10 @@ export interface ApiAccount {
    *  the tenant hasn't configured a key (analysis runs on the
    *  platform-default analyser). */
   anthropicApiKey?: string;
+  /** Per-tenant claude.ai subscription OAuth token (§BYO-subscription). Always
+   *  masked on read ("oauth••••••••"). Absent when not configured — fleet runs
+   *  on platform-default credentials. */
+  claudeSubscriptionToken?: string;
   /** Plan §5.5 — white-label per-account branding. All optional;
    *  the Console layout picks them up to re-skin the chrome for
    *  the active session. */

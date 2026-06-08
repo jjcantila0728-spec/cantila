@@ -147,6 +147,11 @@ export default function SettingsView() {
   const [anthropicBusy, setAnthropicBusy] = useState(false);
   const [anthropicError, setAnthropicError] = useState<string | null>(null);
 
+  const [claudeTokenEdit, setClaudeTokenEdit] = useState(false);
+  const [claudeTokenInput, setClaudeTokenInput] = useState("");
+  const [claudeTokenBusy, setClaudeTokenBusy] = useState(false);
+  const [claudeTokenError, setClaudeTokenError] = useState<string | null>(null);
+
   // Plan §5.5 — white-label per-account branding. The four optional
   // fields are edited inline; saving immediately PATCHes the account
   // and updates the local copy so the chrome reskin (next page load)
@@ -342,6 +347,41 @@ export default function SettingsView() {
       setAnthropicError(err instanceof Error ? err.message : "Failed to clear");
     } finally {
       setAnthropicBusy(false);
+    }
+  }
+
+  async function saveClaudeToken() {
+    const token = claudeTokenInput.trim();
+    if (token.length < 20) {
+      setClaudeTokenError("That doesn't look like a valid token.");
+      return;
+    }
+    setClaudeTokenBusy(true);
+    setClaudeTokenError(null);
+    try {
+      const updated = await api.setClaudeSubscriptionToken(token);
+      setAccount(updated);
+      setClaudeTokenInput("");
+      setClaudeTokenEdit(false);
+    } catch (err) {
+      setClaudeTokenError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setClaudeTokenBusy(false);
+    }
+  }
+
+  async function removeClaudeToken() {
+    setClaudeTokenBusy(true);
+    setClaudeTokenError(null);
+    try {
+      const updated = await api.clearClaudeSubscriptionToken();
+      setAccount(updated);
+      setClaudeTokenInput("");
+      setClaudeTokenEdit(false);
+    } catch (err) {
+      setClaudeTokenError(err instanceof Error ? err.message : "Failed to disconnect");
+    } finally {
+      setClaudeTokenBusy(false);
     }
   }
 
@@ -975,6 +1015,131 @@ export default function SettingsView() {
                       "Save new key"
                     ) : (
                       "Save key"
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+          {/* Connect claude.ai subscription card */}
+          <div className="panel flex flex-col p-5 lg:col-span-2">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface-2 text-ember">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <div>
+                  <h3 className="font-display text-sm font-semibold text-ink">
+                    Connect your claude.ai subscription
+                  </h3>
+                  <p className="text-2xs text-ink-faint">
+                    Run the build fleet on your own Claude subscription quota
+                  </p>
+                </div>
+              </div>
+              {account?.claudeSubscriptionToken ? (
+                <Pill tone="live">
+                  <Check className="h-3 w-3" />
+                  Connected
+                </Pill>
+              ) : (
+                <Pill tone="neutral">Using platform default</Pill>
+              )}
+            </div>
+
+            <p className="mt-3 text-2xs leading-relaxed text-ink-dim">
+              When connected, every build and chat in this workspace runs on{" "}
+              <strong>your</strong> claude.ai subscription — AI build spend comes
+              off your quota, not Cantila&apos;s platform bill. Copy{" "}
+              <code className="font-mono">CLAUDE_CODE_OAUTH_TOKEN</code> from{" "}
+              <code className="font-mono">~/.claude/credentials.json</code>{" "}
+              (Windows: <code className="font-mono">%APPDATA%\Claude\credentials.json</code>)
+              and paste it below.
+            </p>
+
+            {account?.claudeSubscriptionToken && !claudeTokenEdit ? (
+              <div className="mt-3 flex items-center gap-2.5 rounded-lg border border-border-soft bg-surface-2 px-3 py-2.5">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-surface-3">
+                  <KeyRound className="h-3.5 w-3.5 text-ink-dim" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <code className="truncate font-mono text-xs text-ink">
+                    {account.claudeSubscriptionToken}
+                  </code>
+                  <div className="text-2xs text-ink-faint">
+                    Connected · build fleet uses your subscription
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-2">
+                <input
+                  value={claudeTokenInput}
+                  onChange={(e) => setClaudeTokenInput(e.target.value)}
+                  type="password"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Paste CLAUDE_CODE_OAUTH_TOKEN here…"
+                  className={inputClass}
+                  disabled={claudeTokenBusy}
+                />
+                {claudeTokenError && (
+                  <p className="text-2xs text-down">{claudeTokenError}</p>
+                )}
+              </div>
+            )}
+
+            <div className="mt-auto flex gap-2 pt-3.5">
+              {account?.claudeSubscriptionToken && !claudeTokenEdit ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setClaudeTokenEdit(true);
+                      setClaudeTokenError(null);
+                    }}
+                    disabled={claudeTokenBusy}
+                    className="h-8 flex-1 rounded-lg border border-border bg-surface-2 text-2xs font-medium text-ink-dim hover:text-ink disabled:opacity-50"
+                  >
+                    Rotate
+                  </button>
+                  <button
+                    onClick={() => void removeClaudeToken()}
+                    disabled={claudeTokenBusy}
+                    className="h-8 flex-1 rounded-lg border border-down/30 bg-down/10 text-2xs font-medium text-down hover:bg-down/20 disabled:opacity-50"
+                  >
+                    {claudeTokenBusy ? (
+                      <Loader2 className="mx-auto h-3 w-3 animate-spin" />
+                    ) : (
+                      "Disconnect"
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {account?.claudeSubscriptionToken && (
+                    <button
+                      onClick={() => {
+                        setClaudeTokenEdit(false);
+                        setClaudeTokenInput("");
+                        setClaudeTokenError(null);
+                      }}
+                      disabled={claudeTokenBusy}
+                      className="h-8 flex-1 rounded-lg border border-border bg-surface-2 text-2xs font-medium text-ink-dim hover:text-ink"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    onClick={() => void saveClaudeToken()}
+                    disabled={claudeTokenBusy || claudeTokenInput.length < 20}
+                    className="h-8 flex-1 rounded-lg bg-ember text-2xs font-semibold text-[#1a0e08] hover:bg-ember-bright disabled:opacity-50"
+                  >
+                    {claudeTokenBusy ? (
+                      <Loader2 className="mx-auto h-3 w-3 animate-spin" />
+                    ) : account?.claudeSubscriptionToken ? (
+                      "Save new token"
+                    ) : (
+                      "Connect"
                     )}
                   </button>
                 </>
