@@ -50,7 +50,6 @@ export default function AutomationsView() {
   const [filter, setFilter] = useState<KindFilter>("All");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [handle, setHandle] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +64,9 @@ export default function AutomationsView() {
         return;
       }
       try {
-        const [{ automations }, acct] = await Promise.all([
-          api.listAutomations(),
-          api.getAccountMe().catch(() => null),
-        ]);
+        const { automations } = await api.listAutomations();
         if (!cancelled) {
           setItems(automations.length ? automations.map(fromApi) : []);
-          if (acct) setHandle(acct.handle);
         }
       } catch (err) {
         if (!cancelled)
@@ -160,7 +155,7 @@ export default function AutomationsView() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => (
-            <AutomationCard key={a.id} a={a} handle={handle} />
+            <AutomationCard key={a.id} a={a} />
           ))}
         </div>
       )}
@@ -168,12 +163,12 @@ export default function AutomationsView() {
   );
 }
 
-function AutomationCard({ a, handle }: { a: Automation; handle: string | null }) {
+function AutomationCard({ a }: { a: Automation }) {
   const workflows: WorkflowSummary[] =
     workflowsByAutomation[a.id] ?? [];
-  const href = handle
-    ? `/@${handle}/${encodeURIComponent(a.name)}`
-    : `/automations/${a.id}`;
+  // Automations open their own workflow-focused workspace rather than the
+  // generic project workspace (chat + file editor) the handle URL resolves to.
+  const href = `/automations/${a.id}`;
   return (
     <Link
       href={href}

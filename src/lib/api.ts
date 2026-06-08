@@ -261,8 +261,10 @@ export const api = {
       `/projects/${encodeURIComponent(projectId)}/logs`,
     ),
 
-  listEnv: (projectId: string) =>
-    request<{ env: ApiEnvVar[] }>(`/projects/${encodeURIComponent(projectId)}/env`),
+  listEnv: (projectId: string, opts?: { reveal?: boolean }) =>
+    request<{ env: ApiEnvVar[] }>(
+      `/projects/${encodeURIComponent(projectId)}/env${opts?.reveal ? "?reveal=1" : ""}`,
+    ),
 
   setEnv: (
     projectId: string,
@@ -1203,6 +1205,19 @@ export const api = {
   loadWorkflow: (automationId: string, workflowId: string) =>
     request<{ workflow: ApiWorkflowGraph }>(
       `/automations/${encodeURIComponent(automationId)}/workflows/${encodeURIComponent(workflowId)}`,
+    ),
+
+  /** Import an already-built n8n workflow from its export JSON (n8n's
+   *  *Download* / *Copy to clipboard* output). The control plane converts
+   *  it to the canonical graph and creates a fresh workflow, returning it
+   *  ready to open on the canvas. n8n automations only. */
+  importWorkflow: (
+    automationId: string,
+    input: { workflow: Record<string, unknown>; name?: string },
+  ) =>
+    request<{ workflow: ApiWorkflowGraph }>(
+      `/automations/${encodeURIComponent(automationId)}/workflows/import`,
+      { method: "POST", body: JSON.stringify(input) },
     ),
 
   runWorkflow: (automationId: string, workflowId: string, input?: unknown) =>

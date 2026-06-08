@@ -4,7 +4,7 @@ import { Globe, FileCode, X } from "lucide-react";
 import type { ApiProjectDetail } from "../../lib/api";
 import { cx } from "../ui";
 import BrowserPreview from "./BrowserPreview";
-import OpsDrawer from "./OpsDrawer";
+import OpsDrawer, { type OpsTab } from "./OpsDrawer";
 import CodeEditor from "./CodeEditor";
 
 /* ============================================================
@@ -30,6 +30,8 @@ export default function PreviewColumn({
   activeView,
   onSelectView,
   onCloseFile,
+  opsTab,
+  onCloseOps,
 }: {
   detail: ApiProjectDetail;
   liveUrl: string | null;
@@ -38,6 +40,8 @@ export default function PreviewColumn({
   activeView: string; // "preview" or a file path
   onSelectView: (view: string) => void;
   onCloseFile: (path: string) => void;
+  opsTab: OpsTab | null;
+  onCloseOps: () => void;
 }) {
   const showPreview = activeView === PREVIEW;
 
@@ -88,19 +92,20 @@ export default function PreviewColumn({
         ))}
       </div>
 
-      {/* body — preview hero (with ops drawer) or the active file editor.
-          BrowserPreview stays mounted so its iframe/tab session survives
-          while the user reads a file; only one surface is visible. */}
+      {/* body — preview hero or the active file editor. BrowserPreview stays
+          mounted so its iframe/tab session survives while the user reads a
+          file; only one surface is visible. The ops drawer (driven by the
+          toolbar tabs) overlays whichever surface is showing. */}
       <div className="relative min-h-0 flex-1">
         <div className={cx("absolute inset-0", showPreview ? "block" : "hidden")}>
           <BrowserPreview baseUrl={liveUrl} projectId={detail.project.id} />
-          <OpsDrawer detail={detail} onRefresh={onRefresh} />
         </div>
         {!showPreview && (
           <div className="absolute inset-0">
             <CodeEditor key={activeView} projectId={detail.project.id} path={activeView} />
           </div>
         )}
+        <OpsDrawer detail={detail} onRefresh={onRefresh} tab={opsTab} onClose={onCloseOps} />
       </div>
     </div>
   );

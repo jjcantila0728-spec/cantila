@@ -1,25 +1,10 @@
-"use client";
+import AutomationWorkspace from "@/components/AutomationWorkspace";
 
-/* Legacy /automations/[id] → /@handle/<name>. Automations share the
- * handle-based URL; the workspace branches on automationKind. */
+export const metadata = { title: "Automation · Cantila Console" };
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { resolveLegacyProjectUrl } from "@/lib/legacy-redirect";
-
-export default function LegacyAutomationPage({ params }: { params: { id: string } }) {
-  const router = useRouter();
-  useEffect(() => {
-    void (async () => {
-      const target = await resolveLegacyProjectUrl(params.id);
-      router.replace(target);
-    })();
-  }, [params.id, router]);
-  return (
-    <div className="flex h-[calc(100vh-12rem)] items-center justify-center gap-2 text-ink-faint">
-      <Loader2 className="h-4 w-4 animate-spin" />
-      Redirecting…
-    </div>
-  );
+/* The automation workspace. Automations used to redirect into the
+ * generic project workspace (chat + file editor); they now get their
+ * own workflow-focused home rooted at `/automations/[id]`. */
+export default function AutomationPage({ params }: { params: { id: string } }) {
+  return <AutomationWorkspace automationId={params.id} />;
 }
