@@ -1364,6 +1364,9 @@ export interface ApiAutomation {
   alwaysOn: boolean;
   createdAt: string;
   adminUrl: string;
+  /** Native workspace UI URL — set once the container is provisioned. */
+  workspaceUrl?: string;
+  workspaceAdminUser?: string;
 }
 
 export interface ApiNodeTypeDescriptor {

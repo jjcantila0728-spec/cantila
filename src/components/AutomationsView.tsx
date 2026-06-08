@@ -42,12 +42,12 @@ function fromApi(a: ApiAutomation): Automation {
   };
 }
 
-export default function AutomationsView() {
+export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   // Start empty + loading so we never flash mock data on the live site.
   // Mock data is the offline fallback only (see the `!ok` branch below).
   const [items, setItems] = useState<Automation[]>([]);
-  const [filter, setFilter] = useState<KindFilter>("All");
+  const [filter, setFilter] = useState<KindFilter>(kind ?? "All");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -87,9 +87,15 @@ export default function AutomationsView() {
   return (
     <div className="space-y-7">
       <PageHeader
-        eyebrow={liveMode ? "Automations · live" : "Automations"}
-        title="Workflow automations"
-        lead="n8n and OpenClaw instances with a Cantila-native builder. Pick an instance to open the canvas, drag in nodes, attach a Cantila Connection, and run."
+        eyebrow={liveMode ? `${kind ? KIND_LABELS[kind] : "Automations"} · live` : (kind ? KIND_LABELS[kind] : "Automations")}
+        title={kind === "n8n" ? "n8n workspaces" : kind === "openclaw" ? "OpenClaw workspaces" : "Workflow automations"}
+        lead={
+          kind === "n8n"
+            ? "Each workspace is a dedicated n8n instance. Click through to open the native n8n UI."
+            : kind === "openclaw"
+              ? "Each workspace is a dedicated OpenClaw instance. Click through to open the native OpenClaw UI."
+              : "n8n and OpenClaw instances — each with its own dedicated workspace. Click through to open the native UI."
+        }
         actions={
           <div className="flex items-center gap-2">
             {liveMode === true && (
@@ -102,7 +108,7 @@ export default function AutomationsView() {
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-ember px-3 text-sm font-semibold text-[#1a0e08] hover:bg-ember-bright"
             >
               <Plus className="h-4 w-4" strokeWidth={2.4} />
-              New automation
+              New workspace
             </Link>
           </div>
         }
@@ -115,8 +121,8 @@ export default function AutomationsView() {
         </div>
       )}
 
-      {/* kind tabs */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* kind tabs — hidden when the page already locks to one kind */}
+      <div className={cx("flex flex-wrap items-center gap-2", kind ? "hidden" : "")}>
         {(["All", "n8n", "openclaw"] as KindFilter[]).map((k) => {
           const active = filter === k;
           const count =

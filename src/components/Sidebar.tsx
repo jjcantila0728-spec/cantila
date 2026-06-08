@@ -26,6 +26,7 @@ import {
   Building2,
   ShieldCheck,
   Workflow,
+  Bot,
   Plug,
   LogOut,
   PanelLeftClose,
@@ -90,7 +91,8 @@ export const NAV: { heading: string; items: NavItem[] }[] = [
   {
     heading: "Automations",
     items: [
-      { href: "/automations", label: "Workflows", icon: Workflow },
+      { href: "/n8n", label: "n8n", icon: Workflow },
+      { href: "/openclaw", label: "OpenClaw", icon: Bot },
       { href: "/connections", label: "Connections", icon: Plug },
     ],
   },
