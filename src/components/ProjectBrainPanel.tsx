@@ -7,7 +7,7 @@
    button. This is the user-facing "preserves a token" indicator.
    ============================================================ */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Brain, RefreshCw, MessageSquare, Image as ImageIcon, Clock, Cpu } from "lucide-react";
 import { builderApi, type ApiProjectBrain } from "../lib/api";
 import ProjectLogsPanel from "./ProjectLogsPanel";
@@ -17,39 +17,59 @@ export default function ProjectBrainPanel({ projectId }: { projectId: string }) 
   const [loading, setLoading] = useState(false);
   const [instances, setInstances] = useState<{ id: string; status: string }[] | null>(null);
   const [load, setLoad] = useState<number | null>(null);
+  const aliveRef = useRef(true);
 
-  useEffect(() => {
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId]);
+  // Poll every 5s so the readout stays live while a build is running —
+  // background ticks are silent (no spinner); the manual button isn't.
+  const POLL_MS = 5000;
 
-  useEffect(() => {
-    let alive = true;
-    void builderApi
-      .getProjectInstances(projectId)
-      .then((r) => alive && setInstances(r.instances))
-      .catch(() => {});
-    void builderApi
-      .getProjectMetrics(projectId)
-      .then((r) => {
-        if (!alive || !r.samples.length) return;
-        const last = r.samples[r.samples.length - 1];
-        if (typeof last?.cpuPct === "number") setLoad(last.cpuPct);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [projectId]);
+  const loadBrain = useCallback(
+    async (silent: boolean) => {
+      if (!silent) setLoading(true);
+      try {
+        const b = await builderApi.getProjectBrain(projectId);
+        if (aliveRef.current) setBrain(b);
+      } catch {
+        /* keep the last good readout */
+      } finally {
+        if (!silent && aliveRef.current) setLoading(false);
+      }
+    },
+    [projectId],
+  );
 
-  async function refresh() {
-    setLoading(true);
+  const loadCompute = useCallback(async () => {
     try {
-      setBrain(await builderApi.getProjectBrain(projectId));
-    } finally {
-      setLoading(false);
+      const r = await builderApi.getProjectInstances(projectId);
+      if (aliveRef.current) setInstances(r.instances);
+    } catch {
+      /* ignore */
     }
-  }
+    try {
+      const m = await builderApi.getProjectMetrics(projectId);
+      if (!aliveRef.current || !m.samples.length) return;
+      const last = m.samples[m.samples.length - 1];
+      if (typeof last?.cpuPct === "number") setLoad(last.cpuPct);
+    } catch {
+      /* ignore */
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    aliveRef.current = true;
+    void loadBrain(false);
+    void loadCompute();
+    const t = setInterval(() => {
+      void loadBrain(true);
+      void loadCompute();
+    }, POLL_MS);
+    return () => {
+      aliveRef.current = false;
+      clearInterval(t);
+    };
+  }, [loadBrain, loadCompute]);
+
+  const refresh = useCallback(() => loadBrain(false), [loadBrain]);
 
   return (
     <div className="space-y-4">
@@ -57,6 +77,13 @@ export default function ProjectBrainPanel({ projectId }: { projectId: string }) 
         <div className="flex items-center gap-2">
           <Brain className="h-4 w-4 text-ember" />
           <h2 className="font-display text-base font-semibold text-ink">Project brain</h2>
+          <span
+            title="Auto-refreshing every 5s"
+            className="ml-1 inline-flex items-center gap-1 rounded-full border border-border bg-surface-2 px-1.5 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-live"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-ring" />
+            Live
+          </span>
         </div>
         <button
           onClick={refresh}

@@ -24,7 +24,6 @@ import {
   ExternalLink,
   Loader2,
   AlertCircle,
-  Settings,
 } from "lucide-react";
 import {
   builderApi,
@@ -33,10 +32,10 @@ import {
 } from "../lib/api";
 import { cx, StatusBadge } from "./ui";
 import ProjectChat from "./ProjectChat";
-import ProjectSettingsPanel from "./ProjectSettingsPanel";
 import Splitter from "./workspace/Splitter";
 import ProjectFileTree from "./workspace/ProjectFileTree";
 import PreviewColumn from "./workspace/PreviewColumn";
+import { OPS_TABS, type OpsTab } from "./workspace/OpsDrawer";
 import { useNavDrawer } from "./ConsoleShell";
 
 const TREE_DEFAULT = 280, TREE_MIN = 200, TREE_MAX = 480, TREE_KEY = "cantila:workspace-tree-w";
@@ -60,7 +59,9 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
 
   const [treeW, setTreeW] = useState(TREE_DEFAULT);
   const [previewW, setPreviewW] = useState(PREVIEW_DEFAULT);
-  const [showSettings, setShowSettings] = useState(false);
+  /* Operational surface shown in the preview's bottom sheet, driven by the
+   * toolbar tabs. null = closed, so the preview/phone shows full height. */
+  const [opsTab, setOpsTab] = useState<OpsTab | null>(null);
 
   /* Files opened from the tree become editor tabs in the preview column.
    * `activeView` is either "preview" or one of the open file paths. */
@@ -168,22 +169,36 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
 
   return (
     <div className="flex h-[calc(100vh-5rem)] min-h-[600px] flex-col">
-      {/* slim toolbar */}
-      <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
-        <span className={cx("h-2 w-2 rounded-full", project.status === "live" ? "bg-emerald-400" : "bg-ink-faint")} />
-        <span className="font-display text-sm font-semibold text-ink">{project.name}</span>
+      {/* slim toolbar — project title, status, and the operational tabs */}
+      <div className="flex h-9 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-2">
+        <span className={cx("h-2 w-2 shrink-0 rounded-full", project.status === "live" ? "bg-emerald-400" : "bg-ink-faint")} />
+        <span className="shrink-0 font-display text-sm font-semibold text-ink">{project.name}</span>
         <StatusBadge status={project.status} />
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-3 flex shrink-0 items-center gap-0.5">
+          {OPS_TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setOpsTab((cur) => (cur === key ? null : key))}
+              title={label}
+              className={cx(
+                "inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-2xs font-medium",
+                opsTab === key
+                  ? "bg-bg text-ink shadow-sm"
+                  : "text-ink-dim hover:bg-surface-2 hover:text-ink",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           {liveUrl && (
             <a href={liveUrl} target="_blank" rel="noreferrer"
                className="inline-flex h-7 items-center gap-1 rounded-lg bg-ember px-2.5 text-2xs font-semibold text-[#1a0e08] hover:bg-ember-bright">
               <ExternalLink className="h-3.5 w-3.5" /> Open
             </a>
           )}
-          <button onClick={() => setShowSettings(true)}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-ink-dim hover:bg-surface-2 hover:text-ink" title="Settings">
-            <Settings className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
@@ -214,6 +229,8 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
             activeView={activeView}
             onSelectView={setActiveView}
             onCloseFile={closeFile}
+            opsTab={opsTab}
+            onCloseOps={() => setOpsTab(null)}
           />
         </div>
       </div>
@@ -233,28 +250,11 @@ export default function ProjectWorkspace({ handle, projectName }: Props) {
             activeView={activeView}
             onSelectView={setActiveView}
             onCloseFile={closeFile}
+            opsTab={opsTab}
+            onCloseOps={() => setOpsTab(null)}
           />
         </div>
       </div>
-
-      {showSettings && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowSettings(false)}>
-          <div className="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-border bg-surface p-5" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg font-semibold text-ink">Project settings</h2>
-              <button onClick={() => setShowSettings(false)} className="text-ink-dim hover:text-ink">✕</button>
-            </div>
-            <ProjectSettingsPanel
-              detail={detail}
-              onRefresh={() => load({ silent: true })}
-              onSlugChanged={(newSlug) => {
-                setShowSettings(false);
-                router.push(`/@${handle}/${encodeURIComponent(newSlug)}`);
-              }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

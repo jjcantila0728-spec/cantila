@@ -44,6 +44,11 @@ function normalizeUrl(input: string): string {
   return /^https?:\/\//i.test(s) ? s : `https://${s}`;
 }
 
+// Natural footprint of the iPhone mock (frame + bezel + a little for the
+// side buttons), used to scale it down so the whole device always fits.
+const PHONE_W = 436;
+const PHONE_H = 904;
+
 export default function BrowserPreview({
   baseUrl,
   projectId,
@@ -132,6 +137,26 @@ export default function BrowserPreview({
   const refresh = useCallback(() => {
     if (active) update(active.id, { nonce: active.nonce + 1 });
   }, [active, update]);
+
+  // Scale the iPhone mock so the entire device is always visible, no matter
+  // how tall/narrow the preview column is. Measures the available area and
+  // shrinks to fit (never upscales past 1:1 to keep it crisp).
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState(1);
+  useEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (!w || !h) return;
+      setFit(Math.min((w - 16) / PHONE_W, (h - 16) / PHONE_H, 1));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [active?.device]);
 
   return (
     <div className="flex h-full flex-col bg-bg">
@@ -230,7 +255,7 @@ export default function BrowserPreview({
       </div>
 
       {/* iframe area */}
-      <div className="min-h-0 flex-1 overflow-auto bg-bg">
+      <div ref={areaRef} className="min-h-0 flex-1 overflow-hidden bg-bg">
         {!active?.url ? (
           <div className="flex h-full items-center justify-center p-4 text-center text-sm text-ink-dim">
             Not deployed yet — the live preview appears once a domain resolves.
@@ -244,12 +269,16 @@ export default function BrowserPreview({
             className="h-full w-full border-0 bg-white"
           />
         ) : (
-          <div className="flex h-full items-start justify-center p-6">
+          <div className="flex h-full items-center justify-center p-2">
             {/* iPhone 17 Pro — titanium frame, Dynamic Island, side
                 buttons (action + volume left, power + Camera Control
                 right). Screen is the device's true 402×874pt logical
-                viewport so responsive sites hit their mobile breakpoint. */}
-            <div className="relative shrink-0">
+                viewport so responsive sites hit their mobile breakpoint.
+                Scaled to always fit the column (see `fit`). */}
+            <div
+              className="relative shrink-0"
+              style={{ transform: `scale(${fit})`, transformOrigin: "center" }}
+            >
               {/* left rail buttons */}
               <div className="absolute -left-[2px] top-[118px] h-[34px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* action */}
               <div className="absolute -left-[2px] top-[172px] h-[58px] w-[3px] rounded-l-md bg-gradient-to-r from-[#8a8a90] to-[#55555b]" />{/* vol up */}
