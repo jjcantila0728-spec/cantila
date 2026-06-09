@@ -56,6 +56,7 @@ export interface ApiProject {
   repoUrl?: string;
   branch?: string;
   autoDeploy: boolean;
+  automationKind?: "n8n" | "openclaw";
   createdAt: string;
 }
 

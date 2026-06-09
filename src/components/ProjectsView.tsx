@@ -141,7 +141,7 @@ function apiStatusToDisplay(s: ApiProject["status"]): Project["status"] {
 /* Translate a CP project to the Console's local Project shape so it can
  * render through the same ProjectCard. The metrics are placeholder waves
  * since the CP does not emit metrics yet — clearly marked as `live`. */
-function liveProjectToDisplay(p: ApiProject): Project & { live: true; liveId: string } {
+function liveProjectToDisplay(p: ApiProject): DisplayProject & { live: true; liveId: string } {
   return {
     id: p.slug,
     liveId: p.id,
@@ -164,12 +164,13 @@ function liveProjectToDisplay(p: ApiProject): Project & { live: true; liveId: st
     alwaysOn: p.alwaysOn,
     type: "Web app",
     metrics: freshMetrics(),
+    automationKind: p.automationKind,
   };
 }
 
 /* ---------- project card ---------- */
 
-type DisplayProject = Project & { live?: true; liveId?: string };
+type DisplayProject = Project & { live?: true; liveId?: string; automationKind?: "n8n" | "openclaw" };
 
 function ProjectCardMenu({ onDelete }: { onDelete: () => void }) {
   const [open, setOpen] = useState(false);
@@ -424,17 +425,21 @@ export default function ProjectsView() {
   }, []);
 
   const loaded: DisplayProject[] = items ?? [];
+  // Workflows (n8n, openclaw) are shown in their own section — exclude from the main project grid.
+  const workflows = loaded.filter((p) => p.automationKind);
+  const apps = loaded.filter((p) => !p.automationKind);
+
   const counts = {
-    all: loaded.length,
-    live: loaded.filter((p) => p.status === "live").length,
-    building: loaded.filter((p) => p.status === "building").length,
-    issues: loaded.filter(
+    all: apps.length,
+    live: apps.filter((p) => p.status === "live").length,
+    building: apps.filter((p) => p.status === "building").length,
+    issues: apps.filter(
       (p) => p.status === "crashed" || p.status === "paused",
     ).length,
   };
 
   const q = query.trim().toLowerCase();
-  const filtered = loaded.filter((p) => {
+  const filtered = apps.filter((p) => {
     const matchesFilter =
       filter === "all"
         ? true
@@ -586,7 +591,7 @@ export default function ProjectsView() {
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
           Loading projects…
         </div>
-      ) : loaded.length === 0 && liveMode === true ? (
+      ) : apps.length === 0 && workflows.length === 0 && liveMode === true ? (
         <div className="panel dot-grid flex flex-col items-center justify-center gap-3 py-20 text-center">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-ember/10 text-ember">
             <Rocket className="h-5 w-5" strokeWidth={2.2} />
@@ -622,7 +627,7 @@ export default function ProjectsView() {
             />
           ))}
         </div>
-      ) : (
+      ) : apps.length > 0 ? (
         <div className="panel dot-grid flex flex-col items-center justify-center gap-2 py-16 text-center">
           <p className="text-sm font-medium text-ink">No projects match</p>
           <p className="text-2xs text-ink-faint">
@@ -638,6 +643,43 @@ export default function ProjectsView() {
             Clear filters
           </button>
         </div>
+      ) : null}
+
+      {/* Workflows section — n8n, openclaw, etc. Never mixed into the project grid. */}
+      {workflows.length > 0 && (
+        <section className="mt-2">
+          <h2 className="kv mb-3 text-ink-dim">Workflows · {workflows.length}</h2>
+          <div className="flex flex-col gap-2">
+            {workflows.map((w) => (
+              <div
+                key={w.id}
+                className="panel flex items-center gap-4 px-4 py-3"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-xs font-bold text-ink-dim uppercase">
+                  {w.automationKind === "n8n" ? "n8n" : "OC"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink">{w.name}</p>
+                  <p className="text-2xs text-ink-faint">{w.automationKind} · {w.status}</p>
+                </div>
+                <StatusBadge status={w.status} />
+                {w.live && w.liveId && (
+                  <button
+                    onClick={() => {
+                      setDeleteError(null);
+                      setConfirmText("");
+                      setDeleteTarget(w);
+                    }}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-surface-2 text-ink-dim transition-colors hover:border-down/40 hover:bg-down/10 hover:text-down"
+                    aria-label={`Delete ${w.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* new project modal */}
