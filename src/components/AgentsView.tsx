@@ -17,7 +17,8 @@ import {
   AlertCircle,
   Zap,
   Loader2,
-  Activity as ActivityIcon,
+  Eye,
+  BookOpen,
 } from "lucide-react";
 import { PageHeader, Pill, cx } from "@/components/ui";
 import {
@@ -31,6 +32,7 @@ import FleetOrgChart from "@/components/agents/FleetOrgChart";
 import SuggestionRail from "@/components/agents/SuggestionRail";
 import {
   AGENT_TONE,
+  AGENT_ORDER,
   type ProposedAgentRow,
 } from "@/components/agents/agent-meta";
 import { useIsOwner } from "@/lib/owner";
@@ -186,10 +188,43 @@ export default function AgentsView() {
         }
       />
 
-      <section>
-        <h2 className="kv mb-3 text-ink-dim">The whole operation</h2>
-        <FleetOrgChart />
-      </section>
+      {/* quick stats strip */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="panel flex items-center gap-3 px-4 py-3">
+          <Zap className="h-4 w-4 shrink-0 text-ember" />
+          <div>
+            <div className="text-lg font-semibold text-ink">{AGENT_ORDER.length}</div>
+            <div className="text-2xs text-ink-faint">agents live</div>
+          </div>
+        </div>
+        <div className={cx("panel flex items-center gap-3 px-4 py-3", snap && snap.pendingProposals.length > 0 && "ring-1 ring-ember/40")}>
+          <Sparkles className={cx("h-4 w-4 shrink-0", snap && snap.pendingProposals.length > 0 ? "text-ember" : "text-ink-faint")} />
+          <div>
+            <div className={cx("text-lg font-semibold", snap && snap.pendingProposals.length > 0 ? "text-ember" : "text-ink")}>
+              {snap?.pendingProposals.length ?? "—"}
+            </div>
+            <div className="text-2xs text-ink-faint">proposals pending</div>
+          </div>
+        </div>
+        <div className="panel flex items-center gap-3 px-4 py-3">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-live" />
+          <div>
+            <div className="text-lg font-semibold text-ink">
+              {snap ? Object.values(snap.agentStats).reduce((s, v) => s + v.actions, 0) : "—"}
+            </div>
+            <div className="text-2xs text-ink-faint">actions taken</div>
+          </div>
+        </div>
+        <div className="panel flex items-center gap-3 px-4 py-3">
+          <Eye className="h-4 w-4 shrink-0 text-info" />
+          <div>
+            <div className="text-lg font-semibold text-ink">
+              {snap ? Object.values(snap.agentStats).reduce((s, v) => s + v.observations, 0) : "—"}
+            </div>
+            <div className="text-2xs text-ink-faint">observations</div>
+          </div>
+        </div>
+      </div>
 
       {/* hub-and-spoke canvas — brain in the middle, agents radiating out.
           Owner gets the chat + suggestion rail alongside; everyone else sees
@@ -219,93 +254,14 @@ export default function AgentsView() {
         <AgentsCanvas snapshot={snap} proposed={proposed} />
       )}
       <p className="-mt-1 text-center text-2xs text-ink-faint">
-        One brain · 9 agents{proposed.length > 0 && ` + ${proposed.length} proposed`} ·
+        One brain · {AGENT_ORDER.length} agents{proposed.length > 0 && ` + ${proposed.length} proposed`} ·
         60s tick · safe + high-confidence actions auto-apply, destructive queue for review.
       </p>
 
-      {/* what the brain has learned */}
+      {/* pending proposals — most actionable, shown before the audit trail */}
       <section>
-        <h2 className="kv mb-3 flex items-center gap-2 text-ink-dim">
-          <ActivityIcon className="h-3 w-3 text-info" />
-          What the brain has learned ·{" "}
-          <span className="text-ink">{snap?.learnings.length ?? 0}</span>
-        </h2>
-        {(!snap || snap.learnings.length === 0) ? (
-          <div className="panel py-6 text-center text-2xs text-ink-faint">
-            {snap
-              ? "No action history yet. The brain learns as it auto-applies high-confidence safe proposals — every outcome (ok or failed) becomes a per-(agent, kind) learning record."
-              : "Loading…"}
-          </div>
-        ) : (
-          <div className="panel overflow-hidden p-0">
-            <table className="w-full text-2xs">
-              <thead className="bg-surface-2 text-ink-dim">
-                <tr>
-                  <th className="px-4 py-2 text-left font-medium">Agent · kind</th>
-                  <th className="px-4 py-2 text-right font-medium">Attempts</th>
-                  <th className="px-4 py-2 text-right font-medium">Success</th>
-                  <th className="px-4 py-2 text-right font-medium">Last</th>
-                  <th className="px-4 py-2 text-left font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-soft">
-                {snap.learnings.map((l) => (
-                  <tr key={`${l.agent}:${l.kind}`}>
-                    <td className="px-4 py-2 font-mono text-ink">
-                      <span
-                        className={cx(
-                          "mr-2 inline-flex rounded px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wider ring-1",
-                          AGENT_TONE[l.agent],
-                        )}
-                      >
-                        {l.agent}
-                      </span>
-                      {l.kind}
-                    </td>
-                    <td className="px-4 py-2 text-right text-ink">{l.attempts}</td>
-                    <td
-                      className={cx(
-                        "px-4 py-2 text-right font-medium",
-                        l.successRatePct >= 90
-                          ? "text-live"
-                          : l.successRatePct >= 50
-                            ? "text-warn"
-                            : "text-down",
-                      )}
-                    >
-                      {l.successRatePct}%
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      <Pill tone={l.lastOutcome === "ok" ? "live" : "down"}>
-                        {l.lastOutcome === "ok" ? "ok" : "failed"}
-                      </Pill>
-                    </td>
-                    <td className="px-4 py-2">
-                      {l.downgrading ? (
-                        <Pill tone="warn">auto-apply paused</Pill>
-                      ) : (
-                        <span className="text-ink-faint">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="border-t border-border-soft bg-surface-2/60 px-4 py-2 text-2xs text-ink-faint">
-              Policy: a kind with ≥ 3 attempts and {"<"} 50% success rate gets
-              one notch off its effective confidence — high → medium, etc. —
-              so the brain stops re-firing a broken auto-action and lets a
-              human decide. Promotion is opt-in only; destructive kinds never
-              auto-apply, regardless of track record.
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* pending proposals */}
-      <section>
-        <h2 className="kv mb-3 flex items-center gap-2 text-ink-dim">
-          <Sparkles className="h-3 w-3 text-ember" />
+        <h2 className={cx("kv mb-3 flex items-center gap-2", snap?.pendingProposals.length ? "text-ember" : "text-ink-dim")}>
+          <Sparkles className={cx("h-3 w-3", snap?.pendingProposals.length ? "text-ember" : "text-ember/50")} />
           Pending proposals ·{" "}
           <span className="text-ink">{snap?.pendingProposals.length ?? 0}</span>
         </h2>
@@ -448,14 +404,97 @@ export default function AgentsView() {
         )}
       </section>
 
-      {/* latest observations */}
-      {snap && snap.observations.length > 0 && (
-        <section>
-          <h2 className="kv mb-3 flex items-center gap-2 text-ink-dim">
-            <ActivityIcon className="h-3 w-3 text-info" />
-            Latest observations ·{" "}
-            <span className="text-ink">{snap.observations.length}</span>
-          </h2>
+      {/* what the brain has learned */}
+      <section>
+        <h2 className="kv mb-3 flex items-center gap-2 text-ink-dim">
+          <BookOpen className="h-3 w-3 text-info" />
+          What the brain has learned ·{" "}
+          <span className="text-ink">{snap?.learnings.length ?? 0}</span>
+        </h2>
+        {(!snap || snap.learnings.length === 0) ? (
+          <div className="panel py-6 text-center text-2xs text-ink-faint">
+            {snap
+              ? "No action history yet. The brain learns as it auto-applies high-confidence safe proposals — every outcome (ok or failed) becomes a per-(agent, kind) learning record."
+              : "Loading…"}
+          </div>
+        ) : (
+          <div className="panel overflow-hidden p-0">
+            <table className="w-full text-2xs">
+              <thead className="bg-surface-2 text-ink-dim">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium">Agent · kind</th>
+                  <th className="px-4 py-2 text-right font-medium">Attempts</th>
+                  <th className="px-4 py-2 text-right font-medium">Success</th>
+                  <th className="px-4 py-2 text-right font-medium">Last</th>
+                  <th className="px-4 py-2 text-left font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-soft">
+                {snap.learnings.map((l) => (
+                  <tr key={`${l.agent}:${l.kind}`}>
+                    <td className="px-4 py-2 font-mono text-ink">
+                      <span
+                        className={cx(
+                          "mr-2 inline-flex rounded px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wider ring-1",
+                          AGENT_TONE[l.agent],
+                        )}
+                      >
+                        {l.agent}
+                      </span>
+                      {l.kind}
+                    </td>
+                    <td className="px-4 py-2 text-right text-ink">{l.attempts}</td>
+                    <td
+                      className={cx(
+                        "px-4 py-2 text-right font-medium",
+                        l.successRatePct >= 90
+                          ? "text-live"
+                          : l.successRatePct >= 50
+                            ? "text-warn"
+                            : "text-down",
+                      )}
+                    >
+                      {l.successRatePct}%
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <Pill tone={l.lastOutcome === "ok" ? "live" : "down"}>
+                        {l.lastOutcome === "ok" ? "ok" : "failed"}
+                      </Pill>
+                    </td>
+                    <td className="px-4 py-2">
+                      {l.downgrading ? (
+                        <Pill tone="warn">auto-apply paused</Pill>
+                      ) : (
+                        <span className="text-ink-faint">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="border-t border-border-soft bg-surface-2/60 px-4 py-2 text-2xs text-ink-faint">
+              Policy: a kind with ≥ 3 attempts and {"<"} 50% success rate gets
+              one notch off its effective confidence — high → medium, etc. —
+              so the brain stops re-firing a broken auto-action and lets a
+              human decide. Promotion is opt-in only; destructive kinds never
+              auto-apply, regardless of track record.
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* latest observations — always shown */}
+      <section>
+        <h2 className="kv mb-3 flex items-center gap-2 text-ink-dim">
+          <Eye className="h-3 w-3 text-info" />
+          Latest observations ·{" "}
+          <span className="text-ink">{snap?.observations.length ?? 0}</span>
+        </h2>
+        {(!snap || snap.observations.length === 0) ? (
+          <div className="panel py-6 text-center text-2xs text-ink-faint">
+            {snap ? "No observations yet — agents haven't ticked." : "Loading…"}
+          </div>
+        ) : (
           <div className="panel divide-y divide-border-soft p-0">
             {snap.observations.slice(0, 12).map((o, i) => (
               <div key={i} className="flex items-center gap-3 px-5 py-2.5">
@@ -477,8 +516,14 @@ export default function AgentsView() {
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+      </section>
+
+      {/* fleet org chart — secondary reference detail */}
+      <section>
+        <h2 className="kv mb-3 text-ink-dim">The whole operation</h2>
+        <FleetOrgChart />
+      </section>
     </div>
   );
 }
