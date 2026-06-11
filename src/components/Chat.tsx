@@ -5,9 +5,11 @@
 
    The admin's general chat surface: describe anything you want
    to build, deploy, or change in Cantila. The planner shapes the
-   request, the control plane creates the project, and the page
-   redirects into the per-project workspace where the agent team
-   streams the build.
+   request and presents the plan back; the user can keep typing to
+   refine it. Only an explicit "Create & build" creates the project
+   and redirects into the per-project workspace where the agent
+   team streams the build — chatting never creates a project on
+   its own.
 
    A plain chat textarea — empty composer in the center, the
    conversation accrues above it once the user starts typing.
@@ -42,11 +44,18 @@ type Bubble =
   | { kind: "user"; text: string }
   | { kind: "agent"; text: string; plan?: ApiDeployPlan };
 
+interface PendingPlan {
+  /** Every user turn so far — the full intent the planner saw. */
+  promptParts: string[];
+  plan: ApiDeployPlan;
+}
+
 export default function Chat() {
   const router = useRouter();
   const [input, setInput] = useState("");
   const [bubbles, setBubbles] = useState<Bubble[]>([]);
   const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [pending, setPending] = useState<PendingPlan | null>(null);
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
   const mounted = useRef(true);
@@ -77,26 +86,37 @@ export default function Chat() {
     }
   }, [bubbles, status.kind]);
 
-  async function runDeploy(prompt: string): Promise<void> {
-    setBubbles((prev) => [...prev, { kind: "user", text: prompt }]);
+  /** Plan (or re-plan) from the conversation so far. Never creates a
+   *  project — that only happens in confirmBuild() on an explicit click. */
+  async function runPlan(message: string): Promise<void> {
+    setBubbles((prev) => [...prev, { kind: "user", text: message }]);
     setStatus({ kind: "planning" });
 
-    let resolvedPlan: ApiDeployPlan;
+    const promptParts = [...(pending?.promptParts ?? []), message];
     try {
-      const { plan } = await builderApi.planDeploy({ prompt, files: [] });
-      resolvedPlan = plan;
+      const { plan } = await builderApi.planDeploy({
+        prompt: promptParts.join("\n"),
+        files: [],
+      });
       if (!mounted.current) return;
       setBubbles((prev) => [
         ...prev,
         { kind: "agent", text: plan.summary, plan },
       ]);
+      setPending({ promptParts, plan });
+      setStatus({ kind: "idle" });
     } catch (err) {
       setStatus({
         kind: "error",
         message: err instanceof Error ? err.message : "planner unavailable",
       });
-      return;
     }
+  }
+
+  /** Create the project + redirect into the workspace build. Only ever
+   *  triggered by the explicit "Create & build" button. */
+  async function confirmBuild(): Promise<void> {
+    if (!pending) return;
 
     if (!liveMode) {
       setStatus({
@@ -110,9 +130,9 @@ export default function Chat() {
     let projectName: string;
     try {
       const created = await api.createProject({
-        name: resolvedPlan.name,
-        runtime: resolvedPlan.runtime as ApiRuntime,
-        region: resolvedPlan.region,
+        name: pending.plan.name,
+        runtime: pending.plan.runtime as ApiRuntime,
+        region: pending.plan.region,
       });
       projectName = created.name;
     } catch (err) {
@@ -130,7 +150,7 @@ export default function Chat() {
     const resolvedHandle = handle ?? "me";
     const key = `cantila:build-prompt:${resolvedHandle}:${projectName}`;
     try {
-      window.sessionStorage.setItem(key, prompt);
+      window.sessionStorage.setItem(key, pending.promptParts.join("\n"));
     } catch {
       // sessionStorage off — workspace falls back to its own prompt input
     }
@@ -147,7 +167,7 @@ export default function Chat() {
     )
       return;
     setInput("");
-    void runDeploy(t);
+    void runPlan(t);
   }
 
   const busy =
@@ -176,6 +196,21 @@ export default function Chat() {
             {bubbles.map((b, i) => (
               <BubbleRow key={i} bubble={b} />
             ))}
+            {pending && status.kind === "idle" && (
+              <div className="ml-11 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => void confirmBuild()}
+                  className="flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-semibold text-[#1a0e08] transition-colors hover:bg-ember-bright"
+                >
+                  <Zap className="h-4 w-4" strokeWidth={2.4} />
+                  Create &amp; build “{pending.plan.name}”
+                </button>
+                <span className="text-2xs text-ink-faint">
+                  or keep typing to refine the plan — nothing is created until
+                  you confirm.
+                </span>
+              </div>
+            )}
             <StatusLine status={status} />
           </div>
         )}
