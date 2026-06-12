@@ -161,6 +161,39 @@ export interface ApiDeployOutcome {
   };
 }
 
+/* ---------- mobile builds + store releases (plan: mobile apps) ---------- */
+
+export interface ApiMobileBuild {
+  id: string;
+  projectId: string;
+  platform: "android" | "ios";
+  mobileStack: string;
+  status: "queued" | "building" | "succeeded" | "failed";
+  artifactKind: "aab" | "apk";
+  artifactPath?: string;
+  artifactSize?: number;
+  applicationId: string;
+  versionCode: number;
+  versionName: string;
+  log?: string;
+  error?: string;
+  createdAt: string;
+  finishedAt?: string;
+}
+
+export interface ApiStoreRelease {
+  id: string;
+  projectId: string;
+  buildId: string;
+  store: "google_play" | "app_store";
+  track: "internal" | "alpha" | "beta" | "production";
+  status: "submitted" | "published" | "stubbed" | "failed";
+  externalRef?: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* ---------- fetch helper ---------- */
 
 export class ApiError extends Error {
@@ -260,6 +293,48 @@ export const api = {
   getLogs: (projectId: string) =>
     request<{ deployments: { deploymentId: string; status: string; logs: string[] }[] }>(
       `/projects/${encodeURIComponent(projectId)}/logs`,
+    ),
+
+  /** Kick off a mobile (Android/iOS) build. iOS returns 409 ios_coming_soon;
+   *  non-mobile projects return 422 not_a_mobile_app. */
+  buildMobile: (
+    projectId: string,
+    input: {
+      platform: "android" | "ios";
+      artifactKind?: "aab" | "apk";
+      versionName?: string;
+    },
+  ) =>
+    request<ApiMobileBuild>(
+      `/projects/${encodeURIComponent(projectId)}/mobile/builds`,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
+  /** Mobile builds for a project, newest first. */
+  listMobileBuilds: (projectId: string) =>
+    request<{ builds: ApiMobileBuild[] }>(
+      `/projects/${encodeURIComponent(projectId)}/mobile/builds`,
+    ),
+
+  /** Publish a succeeded build to a store track. App Store returns 409
+   *  app_store_coming_soon; unfinished builds return 409 build_not_ready. */
+  publishMobileRelease: (
+    projectId: string,
+    input: {
+      buildId: string;
+      store: "google_play" | "app_store";
+      track?: "internal" | "alpha" | "beta" | "production";
+    },
+  ) =>
+    request<ApiStoreRelease>(
+      `/projects/${encodeURIComponent(projectId)}/mobile/releases`,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+
+  /** Store releases for a project, newest first. */
+  listStoreReleases: (projectId: string) =>
+    request<{ releases: ApiStoreRelease[] }>(
+      `/projects/${encodeURIComponent(projectId)}/mobile/releases`,
     ),
 
   listEnv: (projectId: string, opts?: { reveal?: boolean }) =>
@@ -2701,6 +2776,12 @@ export const builderApi = {
     `${API_BASE}/projects/${encodeURIComponent(projectId)}/files/archive${
       ref ? `?ref=${encodeURIComponent(ref)}` : ""
     }`,
+
+  /** Same-origin proxy URL for a succeeded mobile build's artifact (.aab/.apk).
+   *  Fetch it with credentials — the session cookie authenticates via the
+   *  proxy — and save the resulting blob. */
+  mobileArtifactHref: (projectId: string, buildId: string) =>
+    `${API_BASE}/projects/${encodeURIComponent(projectId)}/mobile/builds/${encodeURIComponent(buildId)}/artifact`,
 
   /** Get a single file's content from a project. */
   getProjectFileContent: (projectId: string, path: string, ref?: string) =>
