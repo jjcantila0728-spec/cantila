@@ -1,11 +1,12 @@
 "use client";
 
-import { Rocket, KeyRound, Globe, Brain, X } from "lucide-react";
+import { Rocket, KeyRound, Globe, Brain, Smartphone, X } from "lucide-react";
 import type { ApiProjectDetail } from "../../lib/api";
 import ProjectDeploysPanel from "../ProjectDeploysPanel";
 import ProjectEnvPanel from "../ProjectEnvPanel";
 import ProjectDomainsPanel from "../ProjectDomainsPanel";
 import ProjectBrainPanel from "../ProjectBrainPanel";
+import ProjectMobilePanel from "../ProjectMobilePanel";
 
 /* ============================================================
    OpsDrawer — a slide-over bottom sheet that overlays the lower
@@ -17,12 +18,13 @@ import ProjectBrainPanel from "../ProjectBrainPanel";
    picked and closes via the ✕ or by re-clicking the active tab.
    ============================================================ */
 
-export type OpsTab = "deploys" | "env" | "domains" | "brain";
+export type OpsTab = "deploys" | "env" | "domains" | "mobile" | "brain";
 
 export const OPS_TABS: { key: OpsTab; label: string; icon: typeof Rocket }[] = [
   { key: "deploys", label: "Deploys", icon: Rocket },
   { key: "env", label: "Env", icon: KeyRound },
   { key: "domains", label: "Domains", icon: Globe },
+  { key: "mobile", label: "Mobile", icon: Smartphone },
   { key: "brain", label: "Brain", icon: Brain },
 ];
 
@@ -63,6 +65,7 @@ export default function OpsDrawer({
         {tab === "deploys" && <ProjectDeploysPanel detail={detail} onRefresh={onRefresh} />}
         {tab === "env" && <ProjectEnvPanel projectId={projectId} />}
         {tab === "domains" && <ProjectDomainsPanel detail={detail} onRefresh={onRefresh} />}
+        {tab === "mobile" && <ProjectMobilePanel detail={detail} onRefresh={onRefresh} />}
         {tab === "brain" && <ProjectBrainPanel projectId={projectId} />}
       </div>
     </div>
