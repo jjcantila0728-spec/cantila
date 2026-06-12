@@ -60,6 +60,33 @@ export default function MailboxPage({ params }: { params: { box: string } }) {
             });
             return;
           }
+          // Also check hosted mailboxes (e.g. info@cantila.app).
+          try {
+            const { mailboxes: hosted } = await api.listHostedMailboxes();
+            const hostedRow = hosted.find(
+              (m) => mailboxSlug(m.address) === params.box,
+            );
+            if (hostedRow) {
+              if (cancelled) return;
+              setRes({
+                status: "found",
+                mailbox: {
+                  address: hostedRow.address,
+                  displayName: hostedRow.displayName || hostedRow.address,
+                  domain: hostedRow.address.split("@")[1] || "unknown",
+                  kind: hostedRow.kind,
+                  usedMb: hostedRow.usedMb,
+                  quotaMb: hostedRow.quotaMb,
+                  status: hostedRow.status === "active" ? "active" : "provisioning",
+                  member: hostedRow.address,
+                },
+                emails: [],
+              });
+              return;
+            }
+          } catch {
+            /* fall through */
+          }
         } catch {
           /* fall through to the mock seed */
         }
