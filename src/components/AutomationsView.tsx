@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Rocket,
@@ -9,11 +9,13 @@ import {
   AlertCircle,
   Plus,
   Zap,
+  ExternalLink,
 } from "lucide-react";
 import { PageHeader, Pill, StatusBadge, cx } from "@/components/ui";
-import { automations as mockAutomations, workflowsByAutomation } from "@/lib/mock-data";
+import { workflowsByAutomation } from "@/lib/mock-data";
 import type { Automation, AutomationKind, WorkflowSummary } from "@/lib/types";
 import { api, isControlPlaneLive, type ApiAutomation } from "@/lib/api";
+import { liveAutomationsForKind } from "@/data/live-automations";
 
 type KindFilter = "All" | AutomationKind;
 const KIND_LABELS: Record<KindFilter, string> = {
@@ -44,29 +46,40 @@ function fromApi(a: ApiAutomation): Automation {
 
 export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
   const [liveMode, setLiveMode] = useState<boolean | null>(null);
-  // Start empty + loading so we never flash mock data on the live site.
-  // Mock data is the offline fallback only (see the `!ok` branch below).
-  const [items, setItems] = useState<Automation[]>([]);
+  // The live production instances (n8n + OpenClaw) the platform runs out of
+  // the box. They are always shown — even when the control plane has no
+  // automations registered — so the dedicated workspaces are reachable.
+  const liveItems = useMemo<Automation[]>(
+    () => liveAutomationsForKind(kind).map(fromApi),
+    [kind],
+  );
+  const [items, setItems] = useState<Automation[]>(liveItems);
   const [filter, setFilter] = useState<KindFilter>(kind ?? "All");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    // Seed with the live instances so they render immediately.
+    setItems(liveItems);
     void isControlPlaneLive().then(async (ok) => {
       if (cancelled) return;
       setLiveMode(ok);
       if (!ok) {
-        // Control plane unreachable — show the demo data so the page
-        // isn't empty in a local/offline preview.
-        setItems(mockAutomations);
+        // Control plane unreachable — the live instances above still render.
         setLoading(false);
         return;
       }
       try {
         const { automations } = await api.listAutomations();
         if (!cancelled) {
-          setItems(automations.length ? automations.map(fromApi) : []);
+          // Live instances first, then any additional control-plane
+          // automations that aren't already represented (matched by slug).
+          const liveSlugs = new Set(liveItems.map((a) => a.slug));
+          const extra = automations
+            .map(fromApi)
+            .filter((a) => !liveSlugs.has(a.slug));
+          setItems([...liveItems, ...extra]);
         }
       } catch (err) {
         if (!cancelled)
@@ -78,7 +91,7 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [liveItems]);
 
   const filtered = items.filter(
     (a) => filter === "All" || a.kind === filter,
@@ -176,10 +189,8 @@ function AutomationCard({ a }: { a: Automation }) {
   // generic project workspace (chat + file editor) the handle URL resolves to.
   const href = `/automations/${a.id}`;
   return (
-    <Link
-      href={href}
-      className="panel group flex flex-col gap-3 p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40"
-    >
+    <div className="panel group flex flex-col gap-3 p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40">
+      <Link href={href} className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 font-display text-lg font-bold text-ember">
           {kindGlyph(a.kind)}
@@ -221,7 +232,19 @@ function AutomationCard({ a }: { a: Automation }) {
           </ul>
         )}
       </div>
-    </Link>
+      </Link>
+      {a.adminUrl && (
+        <a
+          href={a.adminUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 self-start rounded-md border border-border bg-surface-2 px-2.5 py-1 text-2xs font-medium text-ink-dim transition-colors hover:border-ember/40 hover:text-ember"
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          Open native UI
+        </a>
+      )}
+    </div>
   );
 }
 

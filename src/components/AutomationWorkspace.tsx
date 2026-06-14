@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { PageHeader, Pill, StatusBadge, cx } from "@/components/ui";
 import { api, type ApiAutomation } from "@/lib/api";
+import { getLiveAutomation } from "@/data/live-automations";
 
 interface Props {
   automationId: string;
@@ -30,6 +31,14 @@ export default function AutomationWorkspace({ automationId }: Props) {
   const [iframeKey, setIframeKey] = useState(0);
 
   const load = useCallback(async () => {
+    // Live production instances resolve from the local registry so the
+    // workspace embeds even without a control plane.
+    const live = getLiveAutomation(automationId);
+    if (live) {
+      setAutomation(live);
+      setLoading(false);
+      return;
+    }
     try {
       const { automation: a } = await api.getAutomation(automationId);
       setAutomation(a);
