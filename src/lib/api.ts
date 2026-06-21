@@ -295,6 +295,17 @@ export const api = {
       `/projects/${encodeURIComponent(projectId)}/logs`,
     ),
 
+  /** Account-wide Chat-Deploy success metrics (deploy-health panel). */
+  deployMetrics: () =>
+    request<{
+      total: number;
+      live: number;
+      failed: number;
+      successRatePct: number;
+      byFailureReason: Record<string, number>;
+      byTrigger: Record<string, { total: number; live: number }>;
+    }>(`/deploy/metrics`),
+
   /** Kick off a mobile (Android/iOS) build. iOS returns 409 ios_coming_soon;
    *  non-mobile projects return 422 not_a_mobile_app. */
   buildMobile: (
