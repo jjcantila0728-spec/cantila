@@ -2,11 +2,13 @@
    Console sign-in (plan §5.4 — per-user OIDC/SSO auth).
 
    Two submit buttons share one form: "Enter the Console" runs
-   password sign-in; "Continue with SSO" runs the SSO provider
-   action (a stub today — see src/auth/sso.ts on the control
-   plane). Both server actions call helpers in src/lib/auth.ts
-   so /signup and /login share the same session-cookie shape
-   (including the parent-domain scope in production).
+   password sign-in; "Continue with SSO" runs the real SSO provider
+   action — Google and GitHub are LIVE in production (PKCE/JWKS via
+   the control plane; falls back to the bundled StubSsoProvider only
+   when an IdP's env credentials are unset, surfaced via
+   /v1/auth/sso/info → `anyLive`). Both server actions call helpers
+   in src/lib/auth.ts so /signup and /login share the same
+   session-cookie shape (including the parent-domain scope in production).
    ============================================================ */
 
 import { cookies } from "next/headers";
