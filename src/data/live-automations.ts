@@ -23,8 +23,11 @@ export const LIVE_AUTOMATIONS: ApiAutomation[] = [
     region: "fsn1",
     alwaysOn: true,
     createdAt: "2026-06-14T00:00:00.000Z",
-    adminUrl: "https://n8n.cantila.app",
-    workspaceUrl: "https://n8n.cantila.app",
+    // Internalized: n8n runs 24/7 inside the platform, served under the console
+    // sub-path (no public n8n.cantila.app), via Traefik -> internal n8n
+    // container with N8N_PATH=/svc/n8n.
+    adminUrl: "https://console.cantila.app/svc/n8n",
+    workspaceUrl: "https://console.cantila.app/svc/n8n",
   },
   {
     id: "auto_live_openclaw",
