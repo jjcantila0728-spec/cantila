@@ -36,6 +36,37 @@ function kindGlyph(kind: AutomationKind): string {
   return kind === "n8n" ? "n" : "◎";
 }
 
+/* n8n and OpenClaw are different products — they get different vocabulary on
+   their cards and buttons so the two surfaces never read the same. */
+const WORK_VOCAB: Record<
+  AutomationKind,
+  {
+    plural: string;
+    active: string;
+    idle: string;
+    emptyHint: string;
+    newLabel: string;
+    chip: string;
+  }
+> = {
+  n8n: {
+    plural: "Workflows",
+    active: "active",
+    idle: "idle",
+    emptyHint: "No workflows yet — create one in the native UI.",
+    newLabel: "New workspace",
+    chip: "text-ember",
+  },
+  openclaw: {
+    plural: "Agent runs",
+    active: "running",
+    idle: "done",
+    emptyHint: "No agent runs yet — start one in the native UI.",
+    newLabel: "New agent",
+    chip: "text-violet",
+  },
+};
+
 function fromApi(a: ApiAutomation): Automation {
   return {
     id: a.id,
@@ -160,11 +191,11 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
               </span>
             )}
             <Link
-              href="/automations/new"
+              href={kind ? `/automations/new?kind=${kind}` : "/automations/new"}
               className="inline-flex h-9 items-center gap-2 rounded-lg bg-ember px-3 text-sm font-semibold text-[#1a0e08] hover:bg-ember-bright"
             >
               <Plus className="h-4 w-4" strokeWidth={2.4} />
-              New workspace
+              {kind ? WORK_VOCAB[kind].newLabel : "New automation"}
             </Link>
           </div>
         }
@@ -227,6 +258,7 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
 
 function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
   const workflows: LiveWorkflow[] = live?.workflows ?? [];
+  const vocab = WORK_VOCAB[a.kind];
   // Automations open their own workflow-focused workspace rather than the
   // generic project workspace (chat + file editor) the handle URL resolves to.
   const href = `/automations/${a.id}`;
@@ -234,7 +266,10 @@ function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
     <div className="panel group flex flex-col gap-3 p-5 transition-all hover:-translate-y-0.5 hover:border-ember/40">
       <Link href={href} className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 font-display text-lg font-bold text-ember">
+        <span className={cx(
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-border bg-gradient-to-br from-surface-3 to-surface-2 font-display text-lg font-bold",
+          vocab.chip,
+        )}>
           {kindGlyph(a.kind)}
         </span>
         <div className="min-w-0 flex-1">
@@ -257,7 +292,7 @@ function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
       <div className="border-t border-border-soft pt-3 text-2xs text-ink-dim">
         <div className="mb-1 flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-ink-faint">
           <Workflow className="h-3 w-3" />
-          Workflows · {live?.loading ? "…" : workflows.length}
+          {vocab.plural} · {live?.loading ? "…" : workflows.length}
         </div>
         {live?.loading ? (
           <p className="text-ink-faint">Loading workflows…</p>
@@ -268,7 +303,7 @@ function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
         ) : live?.error ? (
           <p className="text-down">Instance unreachable ({live.error}).</p>
         ) : workflows.length === 0 ? (
-          <p className="text-ink-faint">No workflows yet — create one in the native UI.</p>
+          <p className="text-ink-faint">{vocab.emptyHint}</p>
         ) : (
           <ul className="space-y-1">
             {workflows.slice(0, 4).map((wf) => (
@@ -276,9 +311,9 @@ function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
                 <span className="truncate">{wf.name}</span>
                 <span className="shrink-0 font-mono text-[0.65rem]">
                   {wf.active ? (
-                    <span className="text-live">active</span>
+                    <span className="text-live">{vocab.active}</span>
                   ) : (
-                    <span className="text-ink-faint">idle</span>
+                    <span className="text-ink-faint">{vocab.idle}</span>
                   )}
                 </span>
               </li>

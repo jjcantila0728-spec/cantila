@@ -38,8 +38,12 @@ export const LIVE_AUTOMATIONS: ApiAutomation[] = [
     region: "fsn1",
     alwaysOn: true,
     createdAt: "2026-06-14T00:00:00.000Z",
-    adminUrl: "https://openclaw.cantila.app",
-    workspaceUrl: "https://openclaw.cantila.app",
+    // Internalized: OpenClaw runs 24/7 inside the platform, served under the
+    // console sub-path (no public openclaw.cantila.app — that host is now
+    // dead/404), via Traefik -> internal OpenClaw container mounted at
+    // OPENCLAW_BASE_PATH=/svc/openclaw.
+    adminUrl: "https://console.cantila.app/svc/openclaw",
+    workspaceUrl: "https://console.cantila.app/svc/openclaw",
   },
 ];
 

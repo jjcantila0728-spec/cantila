@@ -82,6 +82,8 @@ export default function AutomationWorkspace({ automationId }: Props) {
   const isN8n = automation.kind === "n8n";
   const backHref = isN8n ? "/n8n" : "/openclaw";
   const kindLabel = isN8n ? "n8n" : "OpenClaw";
+  const glyph = isN8n ? "n" : "◎";
+  const glyphAccent = isN8n ? "text-ember" : "text-violet";
   const workspaceUrl = automation.workspaceUrl;
 
   return (
@@ -96,6 +98,14 @@ export default function AutomationWorkspace({ automationId }: Props) {
             <ArrowLeft className="h-3 w-3" /> Back
           </Link>
           <span className="text-border-soft">·</span>
+          <span
+            className={cx(
+              "flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-gradient-to-br from-surface-3 to-surface-2 font-display text-sm font-bold",
+              glyphAccent,
+            )}
+          >
+            {glyph}
+          </span>
           <span className="font-display text-sm font-semibold text-ink">
             {automation.name}
           </span>
