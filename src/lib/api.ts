@@ -1291,6 +1291,14 @@ export const api = {
       `/automations/${encodeURIComponent(automationId)}/workflows`,
     ),
 
+  /** Real workflows from the live platform n8n / OpenClaw instances. */
+  liveWorkflows: (kind: "n8n" | "openclaw") =>
+    request<{
+      configured: boolean;
+      workflows: { id: string; name: string; active: boolean; updatedAt?: string }[];
+      error?: string;
+    }>(`/automations/live/${kind}/workflows`),
+
   saveWorkflow: (automationId: string, graph: ApiWorkflowGraph) =>
     request<{ workflow: ApiWorkflowGraph }>(
       `/automations/${encodeURIComponent(automationId)}/workflows`,

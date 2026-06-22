@@ -12,10 +12,18 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { PageHeader, Pill, StatusBadge, cx } from "@/components/ui";
-import { workflowsByAutomation } from "@/lib/mock-data";
-import type { Automation, AutomationKind, WorkflowSummary } from "@/lib/types";
+import type { Automation, AutomationKind } from "@/lib/types";
 import { api, isControlPlaneLive, type ApiAutomation } from "@/lib/api";
 import { liveAutomationsForKind } from "@/data/live-automations";
+
+/** A real workflow from a live n8n/OpenClaw instance. */
+type LiveWorkflow = { id: string; name: string; active: boolean; updatedAt?: string };
+type LiveWorkflows = {
+  configured: boolean;
+  workflows: LiveWorkflow[];
+  error?: string;
+  loading: boolean;
+};
 
 type KindFilter = "All" | AutomationKind;
 const KIND_LABELS: Record<KindFilter, string> = {
@@ -57,6 +65,41 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
   const [filter, setFilter] = useState<KindFilter>(kind ?? "All");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  // Real workflows per kind, fetched from the live n8n/OpenClaw instances.
+  const [liveWf, setLiveWf] = useState<Record<string, LiveWorkflows>>({});
+
+  useEffect(() => {
+    const kinds: AutomationKind[] = kind ? [kind] : ["n8n", "openclaw"];
+    let cancelled = false;
+    setLiveWf((prev) => {
+      const next = { ...prev };
+      for (const k of kinds) next[k] = { configured: false, workflows: [], loading: true };
+      return next;
+    });
+    kinds.forEach((k) => {
+      api
+        .liveWorkflows(k)
+        .then((r) => {
+          if (!cancelled)
+            setLiveWf((prev) => ({ ...prev, [k]: { ...r, loading: false } }));
+        })
+        .catch((e) => {
+          if (!cancelled)
+            setLiveWf((prev) => ({
+              ...prev,
+              [k]: {
+                configured: false,
+                workflows: [],
+                loading: false,
+                error: e instanceof Error ? e.message : "unavailable",
+              },
+            }));
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [kind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -174,7 +217,7 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((a) => (
-            <AutomationCard key={a.id} a={a} />
+            <AutomationCard key={a.id} a={a} live={liveWf[a.kind]} />
           ))}
         </div>
       )}
@@ -182,9 +225,8 @@ export default function AutomationsView({ kind }: { kind?: AutomationKind }) {
   );
 }
 
-function AutomationCard({ a }: { a: Automation }) {
-  const workflows: WorkflowSummary[] =
-    workflowsByAutomation[a.id] ?? [];
+function AutomationCard({ a, live }: { a: Automation; live?: LiveWorkflows }) {
+  const workflows: LiveWorkflow[] = live?.workflows ?? [];
   // Automations open their own workflow-focused workspace rather than the
   // generic project workspace (chat + file editor) the handle URL resolves to.
   const href = `/automations/${a.id}`;
@@ -215,20 +257,35 @@ function AutomationCard({ a }: { a: Automation }) {
       <div className="border-t border-border-soft pt-3 text-2xs text-ink-dim">
         <div className="mb-1 flex items-center gap-1.5 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-ink-faint">
           <Workflow className="h-3 w-3" />
-          Workflows · {workflows.length}
+          Workflows · {live?.loading ? "…" : workflows.length}
         </div>
-        {workflows.length === 0 ? (
-          <p className="text-ink-faint">No workflows yet.</p>
+        {live?.loading ? (
+          <p className="text-ink-faint">Loading workflows…</p>
+        ) : live && !live.configured ? (
+          <p className="text-ink-faint">
+            Not connected yet — open the native UI to set up and add workflows.
+          </p>
+        ) : live?.error ? (
+          <p className="text-down">Instance unreachable ({live.error}).</p>
+        ) : workflows.length === 0 ? (
+          <p className="text-ink-faint">No workflows yet — create one in the native UI.</p>
         ) : (
           <ul className="space-y-1">
-            {workflows.slice(0, 3).map((wf) => (
+            {workflows.slice(0, 4).map((wf) => (
               <li key={wf.id} className="flex items-center justify-between gap-2">
                 <span className="truncate">{wf.name}</span>
-                <span className="shrink-0 font-mono text-[0.65rem] text-ink-faint">
-                  {wf.lastRunAt ?? "—"}
+                <span className="shrink-0 font-mono text-[0.65rem]">
+                  {wf.active ? (
+                    <span className="text-live">active</span>
+                  ) : (
+                    <span className="text-ink-faint">idle</span>
+                  )}
                 </span>
               </li>
             ))}
+            {workflows.length > 4 && (
+              <li className="text-ink-faint">+{workflows.length - 4} more</li>
+            )}
           </ul>
         )}
       </div>
